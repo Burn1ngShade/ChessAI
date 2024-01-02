@@ -6,29 +6,23 @@ using Unity.VisualScripting;
 using UnityEditor;
 using UnityEditor.PackageManager;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 //the logic for a board state in chess game
 public class Board
 {
-    public static string defaultFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w QKqk - 0 1";
-    //public static string defaultFen = "4k/pppppppp/8/8/8/8/PPPPPPPP/4K w - - 0 1";
+    public static string defaultFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w QKqk - 0 1"; //default starting pos in chess
+    public static string usedFen => defaultFen;
+    //public static string usedFen => "8/2KP/8/8/8/8/8/kq b - - 1 1"; //position loaded by chess engine
 
-    //actual board values do not modify this pretty please!!!!
-    public byte[] board = new byte[64];
+    public byte[] board = new byte[64]; //actual values of board
 
-    public int gameProgress = 0;
+    //public int gameProgress = 0; //state of game, 0 = playing, 1 = white win, ect.
 
     public byte whiteKingPos;
     public byte blackKingPos;
     public byte friendlyKingPos => whiteTurn ? whiteKingPos : blackKingPos;
     public byte oppKingPos => whiteTurn ? blackKingPos : whiteKingPos;
-
-    public int wLastKingMove = 0;
-    public int bLastKingMove = 0;
-
-    public byte fiftyMoveRule = 100; //fifty moves = 100 player moves
-    public byte castleRights = 0b0000;
-    public byte enPassantFile = 0;
 
     public ulong pieceBitboard = 0;
     public ulong wPieceBitboard = 0;
@@ -39,24 +33,23 @@ public class Board
     public ulong bAttackBitboard = 0;
     public ulong oppAttackBitboard => whiteTurn ? bAttackBitboard : wAttackBitboard;
 
-    public int legalMoves = 0;
-    public int legalQueenMoves = 0;
-    public int oppLegalMoves = 0;
-    public int oppLegalQueenMoves = 0;
+    public (int friendlyAll, int friendlyQueen, int oppAll, int oppQueen) legalMoves;
+    public bool majorCapture;
+    public bool isCheck;
 
     //check stuff
     public ulong pinBitboard = 0;
     public ulong checkBitboard = 0;
     public ulong kingBlockerBitboard = 0;
 
-    public bool majorCapture = false;
-
     public List<Move> moves = new List<Move>();
     public Stack<Move> previousMoves = new Stack<Move>();
 
-    HashSet<ulong> previousPositions = new HashSet<ulong>();
-    HashSet<ulong> doublePreviousPositions = new HashSet<ulong>(); //previous positions that have occured twice
-    public ulong zobristKey;
+    public HashSet<ulong> previousPositions = new HashSet<ulong>();
+    public HashSet<ulong> doublePreviousPositions = new HashSet<ulong>(); //previous positions that have occured twice
+    // public ulong zobristKey;
+
+    public BoardState state = new BoardState();
 
     //game data
     public int turn { get; private set; } = 0;
@@ -107,19 +100,19 @@ public class Board
 
         if (splitFen.Length > 2)
         {
-            castleRights = (byte)(splitFen[2].Contains('Q') ? 0 : 8);
-            castleRights += (byte)(splitFen[2].Contains('q') ? 0 : 4);
-            castleRights += (byte)(splitFen[2].Contains('K') ? 0 : 2);
-            castleRights += (byte)(splitFen[2].Contains('k') ? 0 : 1);
+            state.castleRights = (byte)(splitFen[2].Contains('Q') ? 0 : 8);
+            state.castleRights += (byte)(splitFen[2].Contains('q') ? 0 : 4);
+            state.castleRights += (byte)(splitFen[2].Contains('K') ? 0 : 2);
+            state.castleRights += (byte)(splitFen[2].Contains('k') ? 0 : 1);
         }
         if (splitFen.Length > 3 && splitFen[3][0] != '-')
         {
-            enPassantFile = byte.Parse(splitFen[3]);
+            state.enPassantFile = byte.Parse(splitFen[3]);
         }
         if (splitFen.Length > 4) turn = int.Parse(splitFen[4]);
 
-        zobristKey = Zobrist.CalculateZobristKey(this);
-        previousPositions.Add(zobristKey);
+        state.zobristKey = Zobrist.CalculateZobristKey(this);
+        previousPositions.Add(state.zobristKey);
 
         this.moves = MoveGeneration.GenerateMoves(this);
     }
@@ -128,14 +121,8 @@ public class Board
     {
         Array.Copy(b.board, board, 64);
 
-        gameProgress = b.gameProgress;
-
         whiteKingPos = b.whiteKingPos;
         blackKingPos = b.blackKingPos;
-
-        castleRights = b.castleRights;
-        fiftyMoveRule = b.fiftyMoveRule;
-        enPassantFile = b.enPassantFile;
 
         wPieceBitboard = b.wPieceBitboard;
         bPieceBitboard = b.bPieceBitboard;
@@ -148,7 +135,7 @@ public class Board
         kingBlockerBitboard = b.kingBlockerBitboard;
         checkBitboard = b.checkBitboard;
 
-        zobristKey = b.zobristKey;
+        state = new BoardState(b.state);
 
         for (int i = 0; i < b.moves.Count; i++) moves.Add(new Move(b.moves[i]));
         previousMoves = new Stack<Move>(b.previousMoves.Select(item => new Move(item)));
@@ -217,8 +204,6 @@ public class Board
         int value;
         for (int i = 0; i < moves.Count; i++)
         {
-            if (Piece.IsWhite(board[moves[i].startPos]) != whiteTurn) continue;
-
             value = Piece.EvalValue(board[moves[i].endPos]);
 
             if (maxValue <= value)
@@ -255,7 +240,7 @@ public class Board
 
     public bool MakeMove(Move move)
     {
-        move.SetPieceAndCapturePiece(this);
+        move.SetMoveInfo(this);
 
         board[move.endPos] = move.piece;
         board[move.startPos] = 0;
@@ -263,63 +248,82 @@ public class Board
         bool isWhite = Piece.IsWhite(move.piece);
         int offset = isWhite ? 0 : 56;
 
-        if (move.piece == 7) bLastKingMove = turn + 1;
-        else if (move.piece == 1) wLastKingMove = turn + 1;
+        if (move.capturePiece != 0) state.zobristKey ^= Zobrist.piecesArray[move.capturePiece - 1, move.endPos]; //remove capture piece
 
-        if (Piece.AbsoluteType(move.piece) == 6 && Math.Abs(move.startPos - move.endPos) == 16) enPassantFile = (byte)(move.startPos % 8 + 1);
-        else enPassantFile = 0;
+        if (move.piece == 7) state.bLastKingMove = turn + 1;
+        else if (move.piece == 1) state.wLastKingMove = turn + 1;
+
+        state.zobristKey ^= Zobrist.enPassantFile[state.enPassantFile];
+
+        if (Piece.AbsoluteType(move.piece) == 6 && Math.Abs(move.startPos - move.endPos) == 16) state.enPassantFile = (byte)(move.startPos % 8 + 1);
+        else state.enPassantFile = 0;
+
+        state.zobristKey ^= Zobrist.enPassantFile[state.enPassantFile];
 
         //castling rights
 
+        state.zobristKey ^= Zobrist.castlingRights[state.castleRights];
+
         if (move.startPos - offset == 4)
         {
-            castleRights = (byte)(castleRights | (isWhite ? 0b00000101 : 0b00001010));
+            state.castleRights = (byte)(state.castleRights | (isWhite ? 0b00000101 : 0b00001010));
         }
         else if (move.startPos - offset == 0)
         {
-            castleRights = (byte)(castleRights | (isWhite ? 0b00000001 : 0b00000010));
+            state.castleRights = (byte)(state.castleRights | (isWhite ? 0b00000001 : 0b00000010));
         }
         else if (move.startPos - offset == 7)
         {
-            castleRights = (byte)(castleRights | (isWhite ? 0b00000100 : 0b00001000));
+            state.castleRights = (byte)(state.castleRights | (isWhite ? 0b00000100 : 0b00001000));
         }
+
+        state.zobristKey ^= Zobrist.castlingRights[state.castleRights];
 
         if (move.type == 1)
         {
+            state.zobristKey ^= Zobrist.piecesArray[board[move.endPos + 8 * (isWhite ? -1 : 1)] - 1, move.endPos + 8 * (isWhite ? -1 : 1)];
             board[move.endPos + 8 * (isWhite ? -1 : 1)] = 0;
         }
         else if (move.type >= 2 && move.type <= 5)
         {
+            state.zobristKey ^= Zobrist.piecesArray[move.piece - 1, move.endPos];
             board[move.endPos] = (byte)(move.type + (isWhite ? 0 : 6));
+            state.zobristKey ^= Zobrist.piecesArray[(byte)move.type + (isWhite ? -1 : 5), move.endPos];
         }
         else if (move.type == 6)
         {
+            state.zobristKey ^= Zobrist.piecesArray[2 + (isWhite ? 0 : 6), move.startPos - 4];
+            state.zobristKey ^= Zobrist.piecesArray[2 + (isWhite ? 0 : 6), move.startPos - 1];
             board[move.startPos - 4] = 0;
             board[move.startPos - 1] = (byte)(3 + (isWhite ? 0 : 6));
         }
         else if (move.type == 7)
         {
+            state.zobristKey ^= Zobrist.piecesArray[2 + (isWhite ? 0 : 6), move.startPos + 3];
+            state.zobristKey ^= Zobrist.piecesArray[2 + (isWhite ? 0 : 6), move.startPos + 1];
             board[move.startPos + 3] = 0;
             board[move.startPos + 1] = (byte)(3 + (isWhite ? 0 : 6));
         }
 
         turn++;
 
-        if (Piece.AbsoluteType(move.piece) == 6 || move.capturePiece != 0) fiftyMoveRule = 100;
-        else fiftyMoveRule--;
+        state.zobristKey ^= Zobrist.sideToMove;
+        state.zobristKey ^= Zobrist.piecesArray[move.piece - 1, move.startPos];
+        state.zobristKey ^= Zobrist.piecesArray[move.piece - 1, move.endPos];
 
-        zobristKey = Zobrist.CalculateZobristKey(this);
+        if (Piece.AbsoluteType(move.piece) == 6 || move.capturePiece != 0) state.fiftyMoveRule = 100;
+        else state.fiftyMoveRule--;
 
         previousMoves.Push(move);
 
         this.moves = MoveGeneration.GenerateMoves(this);
-        UpdateGameProgress();
+        UpdateGameState();
 
-        if (previousPositions.Contains(zobristKey))
+        if (previousPositions.Contains(state.zobristKey))
         {
-            if (!doublePreviousPositions.Contains(zobristKey)) doublePreviousPositions.Add(zobristKey);
+            if (!doublePreviousPositions.Contains(state.zobristKey)) doublePreviousPositions.Add(state.zobristKey);
         }
-        else previousPositions.Add(zobristKey);
+        else previousPositions.Add(state.zobristKey);
 
         return true;
     }
@@ -333,10 +337,6 @@ public class Board
 
         board[move.startPos] = move.piece;
         board[move.endPos] = move.capturePiece;
-
-        castleRights = move.castleRights;
-        fiftyMoveRule = move.fiftyMoveRule;
-        enPassantFile = move.enPassantFile;
 
         if (move.type == 1)
         {
@@ -354,23 +354,20 @@ public class Board
         }
 
         turn--;
+    
+        if (state.gameState != 5)
+        {
+            if (doublePreviousPositions.Contains(state.zobristKey)) doublePreviousPositions.Remove(state.zobristKey);
+            else previousPositions.Remove(state.zobristKey);
+        }
 
-        bLastKingMove = move.bLastKingMove;
-        wLastKingMove = move.wLastKingMove;
+        state = new BoardState(move.state);
 
         this.moves = MoveGeneration.GenerateMoves(this);
 
-        if (gameProgress != 5)
-        {
-            if (doublePreviousPositions.Contains(zobristKey)) doublePreviousPositions.Remove(zobristKey);
-            else previousPositions.Remove(zobristKey);
-        }
-
-        zobristKey = move.zobristKey;
-
         //Debug.Log(zobristKey + " : " + previousPositions.Count + " : " + doublePreviousPositions.Count);
 
-        gameProgress = 0;
+        state.gameState = 0;
 
         return true;
     }
@@ -452,25 +449,61 @@ public class Board
         //if check no go!
     }
 
-
-
-    public void UpdateGameProgress()
+    public void UpdateGameState()
     {
-        if (doublePreviousPositions.Contains(zobristKey))
+        if (doublePreviousPositions.Contains(state.zobristKey))
         {
-            gameProgress = 5;
+            state.gameState = 5;
             return;
         }
 
         if (GUIHandler.legalMoves == 0)
         {
-            if (InCheck()) gameProgress = whiteTurn ? 2 : 1;
-            else gameProgress = 3;
+            if (InCheck()) state.gameState = whiteTurn ? 2 : 1;
+            else state.gameState = 3;
         }
-        else if (fiftyMoveRule == 0)
+        else if (state.fiftyMoveRule == 0)
         {
-            gameProgress = 4;
+            state.gameState = 4;
         }
     }
 }
 
+public class BoardState
+{
+    public byte fiftyMoveRule; //fifty moves = 100 ply (what i track)
+    public byte castleRights;
+    public byte enPassantFile;
+
+    public ulong zobristKey;
+    public int gameState;
+
+    public int wLastKingMove;
+    public int bLastKingMove;
+
+    public BoardState()
+    {
+        this.fiftyMoveRule = 100;
+        this.castleRights = 0;
+        this.enPassantFile = 0;
+
+        this.zobristKey = 0;
+        this.gameState = 0;
+
+        this.wLastKingMove = 0;
+        this.bLastKingMove = 0;
+    }
+
+    public BoardState(BoardState state)
+    {
+        fiftyMoveRule = state.fiftyMoveRule;
+        castleRights = state.castleRights;
+        enPassantFile = state.enPassantFile;
+
+        zobristKey = state.zobristKey;
+        gameState = state.gameState;
+
+        wLastKingMove = state.wLastKingMove;
+        bLastKingMove = state.bLastKingMove;
+    }
+}

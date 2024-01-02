@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
 
-//the logic for a move on a board 
+/// <summary> The info about a move on the board </summary>
 public class Move
 {
     public byte startPos; //pos move start
@@ -14,28 +14,15 @@ public class Move
 
     public byte type; //0 normal, 1 enpassanent, 2-5 promotion, 6-7 castle
 
-    public byte castleRights;
-    public byte fiftyMoveRule;
-    public byte enPassantFile;
+    public BoardState state;
 
-    public int wLastKingMove;
-    public int bLastKingMove;
-
-    public ulong zobristKey = 0;
-
-    public void SetPieceAndCapturePiece(Board board) //shouldnt really need calls outside of Board
+    /// <summary> Updates move with all data about itself, from current board position </summary>
+    public void SetMoveInfo(Board board) //shouldnt really need calls outside of Board
     {
         piece = board.board[startPos];
         capturePiece = board.board[endPos];
 
-        castleRights = board.castleRights;
-        fiftyMoveRule = board.fiftyMoveRule;
-        enPassantFile = board.enPassantFile;
-
-        wLastKingMove = board.wLastKingMove;
-        bLastKingMove = board.bLastKingMove;
-
-        zobristKey = board.zobristKey;
+        state = new BoardState(board.state);
     }
 
     public Move(Move move)
@@ -48,8 +35,7 @@ public class Move
 
         this.type = move.type;
 
-        this.capturePiece = move.capturePiece;
-        this.fiftyMoveRule = move.fiftyMoveRule;
+        this.state = this.state == null ? new BoardState() : new BoardState(move.state);
     }
 
     public Move(byte startPos, byte endPos, byte type = 0)
@@ -61,11 +47,11 @@ public class Move
 
     public override int GetHashCode()
     {
-        return startPos << 8 | endPos; //should be unique for every move?
+        return startPos << 8 | endPos; //should be unique for every move? (per position)
     }
 
     public override string ToString()
     {
-        return $"{startPos} : {endPos}";
+        return $"{startPos} : {endPos} : {type}";
     }
 }

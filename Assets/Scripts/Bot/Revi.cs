@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 
 /* main weakness rn:
-end game strength, it usally figures out what to do, but takes it sweet time, 
-i thinks the cause is 1. the king from centre triggers 2 early, when 2 many pawns up or material advantage 2 small, secondly 
-not enough encrougment to push pawns i think.
+have it check best moves from last round first 
+punish for losing castling rights
+give evaulation the move node list
+est rating 1050
 
 also just not very fast :(
 */
@@ -31,17 +32,18 @@ public static class Revi
     static int moveSearchCount;
     static int branchesPrunned;
     static int potentialBranches;
+    static Stopwatch s;
 
-    public static Move GetMove(Board board) //on ocasion the transpo table still makes errors but there now rare and small enough idrc
+    public static Move GetMove(Board board, int searchDepth, bool increaseSearchDepth) //on ocasion the transpo table still makes errors but there now rare and small enough idrc
     {
-        Stopwatch s = new Stopwatch();
+        s = new Stopwatch();
 
         s.Start();
 
-        if (openingBook.ContainsKey(board.zobristKey))
+        if (openingBook.ContainsKey(board.state.zobristKey))
         {
-            string openingBookMove = openingBook[board.zobristKey][UnityEngine.Random.Range(0, openingBook[board.zobristKey].Count)];
-            UnityEngine.Debug.Log($"Move {openingBookMove} Selected Of {openingBook[board.zobristKey].Count} Book Moves, Time Taken {s.ElapsedMilliseconds}");
+            string openingBookMove = openingBook[board.state.zobristKey][UnityEngine.Random.Range(0, openingBook[board.state.zobristKey].Count)];
+            UnityEngine.Debug.Log($"Move {openingBookMove} Selected Of {openingBook[board.state.zobristKey].Count} Book Moves, Time Taken {s.ElapsedMilliseconds}ms");
             return board.GetMove(openingBookMove);
         }
 
@@ -50,43 +52,43 @@ public static class Revi
         potentialBranches = 0;
         transpositions = new TranspositionTable(searchDepth);
 
-        maximizingPlayer = board.whiteTurn;
         //always end with the opponents move being considered, this stops the ai sacrificing a piece taking a knight or smthing without realising it can be captured back
-        searchDepthMaxExtend = searchDepth % 2 == 0 ? -1 : 0;
-        //EXPERMENTAL 
+        searchDepthMaxExtend = searchDepth % 2 == 0 ? -1 : -0;
 
         (double eval, MoveNode move) move = AlphaBeta3(new Board(board), searchDepth, double.MinValue, double.MaxValue, board.whiteTurn);
 
         s.Stop();
 
-        if (s.ElapsedMilliseconds < SearchDepthIncreaseCap)
+        if (s.ElapsedMilliseconds < SearchDepthIncreaseCap && increaseSearchDepth)
         {
-            searchDepth++;
-            UnityEngine.Debug.Log($"Increasing Search Depth From {searchDepth - 1} To {searchDepth}\nTime Taken: {s.ElapsedMilliseconds}ms\nEval: {move.eval}, Index: {move.move.index}");
-            Move m = GetMove(board);
-            searchDepth--;
+            UnityEngine.Debug.Log($"Increasing Search Depth From {searchDepth} To {searchDepth + 1}\nTime Taken: {s.ElapsedMilliseconds}ms\nEval: {move.eval}, Index: {move.move.index}");
+            Move m = GetMove(board, searchDepth + 1, increaseSearchDepth);
             return m;
         }
 
-        UnityEngine.Debug.Log($"Moves Searched: {moveSearchCount}, Time Taken: {s.ElapsedMilliseconds}ms\nEval: {move.eval}, Index: {move.move.index}\nBranches Prunned: {branchesPrunned}, Potential Prunnes: {potentialBranches}");
-        GUIHandler.UpdateBotUI(move.eval, moveSearchCount, s.Elapsed);
+        Move chosenMove = board.GetPlayerMoves()[move.move.index];
 
-        return board.GetPlayerMoves()[move.move.index];
+        UnityEngine.Debug.Log($"Moves Searched: {moveSearchCount}, Time Taken: {s.ElapsedMilliseconds}ms\nEval: {move.eval}, Index: {move.move.index}\nBranches Prunned: {branchesPrunned}, Potential Prunnes: {potentialBranches}");
+        GUIHandler.UpdateBotUI(chosenMove, move.eval, moveSearchCount, searchDepth, potentialBranches, branchesPrunned, s.Elapsed);
+
+        return chosenMove;
     }
 
     static (double eval, MoveNode index) AlphaBeta3(Board board, int depth, double alpha, double beta, bool whiteToPlay)
     {
         //reached end of depth or game final state been reached, so just evaluate current position (quite eval)
-        if (board.gameProgress != 0 || (depth <= 0 && !board.majorCapture) || depth < searchDepthMaxExtend) return (Evaluation.Evaluate(board, maximizingPlayer), new MoveNode(-int.MaxValue, 0, null));
+        if (board.state.gameState != 0 || (depth <= 0 && !board.majorCapture) || depth < searchDepthMaxExtend) return (Evaluation.Evaluate(board), new MoveNode(-int.MaxValue, 0, null));
 
-        if (depth > 0 && transpositions.Contains(board.zobristKey, depth)) //if pos prev found
+        if (board.doublePreviousPositions.Contains(board.state.zobristKey)) return (0, new MoveNode(-int.MaxValue, 0, null)); //if position a repeat assumed to be a draw
+
+        if (depth > 0 && transpositions.Contains(board.state.zobristKey, depth)) //if pos prev found
         {
             potentialBranches++;
-            (double eval, MoveNode index, double alphaBeta) t = transpositions.Get(board.zobristKey, depth); //get pos
+            (double eval, MoveNode index, double alphaBeta) t = transpositions.Get(board.state.zobristKey, depth); //get pos
             //beta or alpha has been expanded so much, old eval inaccurate and new eval required
             if (Math.Abs(t.alphaBeta - (whiteToPlay ? beta : alpha)) > TranspositionChangeCap)
             {
-                transpositions.Remove(board.zobristKey, depth); //remove old eval
+                transpositions.Remove(board.state.zobristKey, depth); //remove old eval
             }
             else
             {
@@ -126,7 +128,7 @@ public static class Revi
 
             chosenIndex.depth++;
 
-            if (depth > 0) transpositions.Add(board.zobristKey, (value, chosenIndex, beta), depth);
+            if (depth > 0) transpositions.Add(board.state.zobristKey, (value, chosenIndex, beta), depth);
             return (value, chosenIndex);
         }
         else //black
@@ -156,10 +158,8 @@ public static class Revi
 
             chosenIndex.depth++;
 
-            if (depth > 0) transpositions.Add(board.zobristKey, (value, chosenIndex, alpha), depth);
+            if (depth > 0) transpositions.Add(board.state.zobristKey, (value, chosenIndex, alpha), depth);
             return (value, chosenIndex);
         }
     }
-
-
 }

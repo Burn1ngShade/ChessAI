@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.Design;
 using UnityEngine;
 
+/// <summary> Class storing chess positions, and their data </summary>
 public class TranspositionTable
 {
     Dictionary<ulong, (double eval, MoveNode index, double alphaBeta)>[] positions;
@@ -50,6 +51,7 @@ public class TranspositionTable
     }
 }
 
+/// <summary> Move info about move in search </summary>
 public class MoveNode
 {
     public MoveNode nextNode;
@@ -60,7 +62,6 @@ public class MoveNode
     public MoveNode(int index, int depth, MoveNode nextNode)
     {
         this.nextNode = nextNode;
-
         this.index = index;
         this.depth = depth;
     }

@@ -58,7 +58,9 @@ public static class MoveGeneration
 
         GenerateAttackBitboards(b, newMoves);
 
-        Stack<int> invalidMoves = new Stack<int>();
+        if (checkState != 0) b.isCheck = true;
+
+        List<Move> validMoves = new List<Move>();
 
         ulong kingInvalidSquares = b.oppAttackBitboard | b.checkBitboard | b.kingBlockerBitboard;
 
@@ -70,8 +72,8 @@ public static class MoveGeneration
 
             if (Piece.IsWhite(b.board[m.startPos]) != b.whiteTurn)
             {
-                b.oppLegalMoves++;
-                if (absType == 2) b.oppLegalQueenMoves++;
+                b.legalMoves.oppAll++;
+                if (absType == 2) b.legalMoves.oppQueen++;
                 continue;
             }
 
@@ -79,7 +81,6 @@ public static class MoveGeneration
             {
                 if ((kingInvalidSquares & (1UL << m.endPos)) != 0)
                 {
-                    invalidMoves.Push(i);
                     continue;
                 }
             }
@@ -87,7 +88,7 @@ public static class MoveGeneration
             {
                 if (checkState == 2)
                 {
-                    invalidMoves.Push(i); //cant block a double check STUPID.
+                    //cant block a double check STUPID.
                     continue;
                 }
 
@@ -95,7 +96,6 @@ public static class MoveGeneration
                 {
                     if ((b.checkBitboard & (1UL << m.endPos)) == 0 && m.endPos != checker) //not stoping the check STUPID
                     {
-                        invalidMoves.Push(i);
                         continue;
                     }
                 }
@@ -104,7 +104,6 @@ public static class MoveGeneration
                 {
                     if ((b.pinBitboard & (1UL << m.endPos)) == 0) //going to non pin spot
                     {
-                        invalidMoves.Push(i);
                         continue;
                     }
 
@@ -115,7 +114,6 @@ public static class MoveGeneration
                     if (!((s.x > k.x ? 0 : s.x == k.x ? 1 : 2) == (e.x > k.x ? 0 : e.x == k.x ? 1 : 2) &&
                     (s.y > k.y ? 0 : s.y == k.y ? 1 : 2) == (e.y > k.y ? 0 : e.y == k.y ? 1 : 2)))
                     {
-                        invalidMoves.Push(i);
                         continue;
                     }
                 }
@@ -125,7 +123,6 @@ public static class MoveGeneration
             {
                 if (checkState != 0 || (b.oppAttackBitboard & (1UL << m.startPos - 1)) != 0)
                 {
-                    invalidMoves.Push(i);
                     continue;
                 }
             }
@@ -133,35 +130,22 @@ public static class MoveGeneration
             {
                 if (checkState != 0 || (b.oppAttackBitboard & (1UL << m.startPos + 1)) != 0)
                 {
-                    invalidMoves.Push(i);
                     continue;
                 }
             }
 
             if (Piece.EvalValue(b.board[m.endPos]) >= 3) b.majorCapture = true;
 
-            b.legalMoves++;
-            if (absType == 2) b.legalQueenMoves++;
-        }
-
-        while (invalidMoves.Count > 0)
-        {
-            newMoves.RemoveAt(invalidMoves.Pop());
+            validMoves.Add(newMoves[i]);
+            b.legalMoves.friendlyAll++;
+            if (absType == 2) b.legalMoves.friendlyQueen++;
         }
 
         //castle and checks must be edited
 
-        GUIHandler.legalMoves = b.legalMoves;
+        GUIHandler.legalMoves = b.legalMoves.friendlyAll;
 
-        if (newMoves.Count < 5)
-        {
-            foreach (Move m in newMoves)
-            {
-                UnityEngine.Debug.Log(m.startPos + " : " + m.endPos);
-            }
-        }
-
-        return newMoves;
+        return validMoves;
     }
 
     static void ResetMoveGen(Board b)
@@ -181,12 +165,9 @@ public static class MoveGeneration
         checkState = 0;
         checker = 0;
 
-        b.legalMoves = 0;
-        b.legalQueenMoves = 0;
-        b.oppLegalMoves = 0;
-        b.oppLegalQueenMoves = 0;
-
+        b.legalMoves = (0, 0, 0, 0);
         b.majorCapture = false;
+        b.isCheck = false;
     }
 
     static void AddMove(Board b, ref List<Move> moves, Move move)
@@ -433,11 +414,11 @@ public static class MoveGeneration
         bool isWhite = Piece.IsWhite(b.board[index]);
         int shift = (isWhite ? 0 : 56);
 
-        if ((b.castleRights & (1 << (isWhite ? 0 : 1))) == 0 && Piece.AbsoluteType(b.board[shift]) == 3 && b.board[shift + 1] + b.board[shift + 2] + b.board[shift + 3] == 0)
+        if ((b.state.castleRights & (1 << (isWhite ? 0 : 1))) == 0 && Piece.AbsoluteType(b.board[shift]) == 3 && b.board[shift + 1] + b.board[shift + 2] + b.board[shift + 3] == 0)
         {
             AddMove(b, ref refMoves, new Move(index, (byte)(index - 2), 6));
         }
-        if ((b.castleRights & (1 << (isWhite ? 2 : 3))) == 0 && Piece.AbsoluteType(b.board[shift + 7]) == 3 && b.board[shift + 6] + b.board[shift + 5] == 0)
+        if ((b.state.castleRights & (1 << (isWhite ? 2 : 3))) == 0 && Piece.AbsoluteType(b.board[shift + 7]) == 3 && b.board[shift + 6] + b.board[shift + 5] == 0)
         {
             AddMove(b, ref refMoves, new Move(index, (byte)(index + 2), 7));
         }

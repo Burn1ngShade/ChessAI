@@ -77,13 +77,13 @@ public static class OpeningBookCreator
 
             for (int j = 0; j < moves.Length; j++)
             {
-                if (openings.ContainsKey(board.zobristKey))
+                if (openings.ContainsKey(board.state.zobristKey))
                 {
-                    if (!openings[board.zobristKey].Contains(moves[j])) openings[board.zobristKey].Add(moves[j]);
+                    if (!openings[board.state.zobristKey].Contains(moves[j])) openings[board.state.zobristKey].Add(moves[j]);
                 }
                 else
                 {
-                    openings.Add(board.zobristKey, new List<string>() { moves[j] });
+                    openings.Add(board.state.zobristKey, new List<string>() { moves[j] });
                 }
 
                 board.MakeMove(board.GetMove(moves[j]));

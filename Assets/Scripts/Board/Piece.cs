@@ -6,6 +6,7 @@ using UnityEngine;
 public static class Piece
 {
     public const int MaxMaterial = 78;
+    public const int MaxSideMaterial = 39;
 
     public static (int white, int black, int total) RemaingMaterial(Board board)
     {
@@ -58,8 +59,8 @@ public static class Piece
         return $"{Letters[File(pos)]}{Rank(pos) + 1}";
     }
 
-    public static readonly int[] mgPieceValues = { 0, 1025, 477, 365, 337, 82 };
-    public static readonly int[] egPieceValues = { 0, 936, 512, 297, 281, 94 };
+    public static readonly int[] mgPieceValues = { 0, 1025, 477, 365, 337, 92 };
+    public static readonly int[] egPieceValues = { 0, 936, 512, 297, 281, 104 };
     static readonly int[] materialPieceValues = { 0, 9, 5, 3, 3, 1 }; //use for caculating position between middle and endgame
 
     public static int[][] mgPieceTables = new int[][] { //ordered king, queen, rook, bishop, knight, pawns

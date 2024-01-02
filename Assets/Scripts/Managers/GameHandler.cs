@@ -17,16 +17,17 @@ public class GameHandler : MonoBehaviour
     public static byte selectedPromotion = byte.MaxValue;
 
     public static int botMode = 0;
+    public static bool useDynamicDepth = true;
 
     void Awake()
     {
         Instance = this;
-        Revi.openingBook = OpeningBookCreator.PGNToOpeningBookFile("Perfect2023OpeningBook.txt");
     }
 
     private void Start()
     {
-        SetUpChessBoard(Board.defaultFen);
+        Revi.openingBook = OpeningBookCreator.PGNToOpeningBookFile("Perfect2023OpeningBook.txt");
+        SetUpChessBoard(Board.usedFen);
     }
 
     private void Update()
@@ -40,7 +41,7 @@ public class GameHandler : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.R)) //reload game
         {
-            SetUpChessBoard(Board.defaultFen);
+            SetUpChessBoard(Board.usedFen);
         }
         else if (Input.GetKeyDown(KeyCode.G))
         {
@@ -57,32 +58,37 @@ public class GameHandler : MonoBehaviour
         else if (Input.GetKeyDown(KeyCode.Alpha1))
         {
             botMode = 0;
-            GUIHandler.UpdateBotUI(0, 0, TimeSpan.Zero);
+            GUIHandler.UpdateBotUINull();
         }
         else if (Input.GetKeyDown(KeyCode.Alpha2))
         {
             botMode = 1;
-            GUIHandler.UpdateBotUI(0, 0, TimeSpan.Zero);
+            GUIHandler.UpdateBotUINull();
         }
         else if (Input.GetKeyDown(KeyCode.Alpha3))
         {
             botMode = 2;
-            GUIHandler.UpdateBotUI(0, 0, TimeSpan.Zero);
+            GUIHandler.UpdateBotUINull();
         }
         else if (Input.GetKeyDown(KeyCode.Alpha4))
         {
             botMode = 3;
-            GUIHandler.UpdateBotUI(0, 0, TimeSpan.Zero);
+            GUIHandler.UpdateBotUINull();
         }
         else if (Input.GetKeyDown(KeyCode.K))
         {
             Revi.searchDepth = Math.Clamp(Revi.searchDepth + 1, 2, 8);
-            GUIHandler.UpdateBotUI(0, 0, TimeSpan.Zero);
+            GUIHandler.UpdateBotUINull();
         }
         else if (Input.GetKeyDown(KeyCode.J))
         {
             Revi.searchDepth = Math.Clamp(Revi.searchDepth - 1, 2, 8);
-            GUIHandler.UpdateBotUI(0, 0, TimeSpan.Zero);
+            GUIHandler.UpdateBotUINull();
+        }
+        else if (Input.GetKeyDown(KeyCode.L))
+        {
+            useDynamicDepth = !useDynamicDepth;
+            GUIHandler.UpdateBotUINull();
         }
 
         GUIHandler.UpdateBoardHighlights();
@@ -94,7 +100,7 @@ public class GameHandler : MonoBehaviour
         switch (gameState)
         {
             case GameState.Playing:
-                if (board.gameProgress != 0)
+                if (board.state.gameState != 0)
                 {
                     gameState = GameState.Over;
                     GUIHandler.ToggleEndGameUI(0);
@@ -116,7 +122,7 @@ public class GameHandler : MonoBehaviour
     /// <summary> Handles bot gameplay. </summary>
     void HandleBotGameplay()
     {
-        Move m = Revi.GetMove(board);
+        Move m = Revi.GetMove(board, Revi.searchDepth, useDynamicDepth);
 
         board.MakeMove(m);
 
@@ -154,7 +160,7 @@ public class GameHandler : MonoBehaviour
                         }
 
                         board.MakeMove(move);
-
+                        Debug.Log(Evaluation.Evaluate(board));
                     }
 
 
@@ -183,6 +189,7 @@ public class GameHandler : MonoBehaviour
             selectedPromotion = byte.MaxValue;
 
             board.MakeMove(move);
+            Debug.Log(Evaluation.Evaluate(board));
 
             selectedPiece = byte.MaxValue;
 
@@ -200,7 +207,7 @@ public class GameHandler : MonoBehaviour
         board = new Board(fenPosition);
         gameState = GameState.Playing;
 
-        GUIHandler.UpdateBotUI(0, 0, TimeSpan.Zero);
+        GUIHandler.UpdateBotUINull();
         GUIHandler.UpdateBoardUI(new List<Move>(), GUIHandler.ClearColourHighlights());
     }
 }

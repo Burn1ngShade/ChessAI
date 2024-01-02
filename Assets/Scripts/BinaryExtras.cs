@@ -24,6 +24,17 @@ public static class BinaryExtras
         return count;
     }
 
+    public static byte PopCount(byte value)
+    {
+        byte count = 0;
+        while (value != 0)
+        {
+            count++;
+            value &= (byte)(value- 1);
+        }
+        return count;
+    }
+
     public static int FlipBitboardIndex(int index)
     {
         return (index)^56;

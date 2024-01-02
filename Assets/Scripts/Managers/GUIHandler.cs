@@ -78,9 +78,9 @@ public class GUIHandler : MonoBehaviour
         infoUI[0].GetComponent<TMP_Text>().text = $"Turn: {GameHandler.board.turn + 1}";
         infoUI[1].GetComponent<TMP_Text>().text = $"To Play: {(GameHandler.board.whiteTurn ? "White" : "Black")}";
         infoUI[2].GetComponent<TMP_Text>().text = $"Move Count: {legalMoves}";
-        infoUI[3].GetComponent<TMP_Text>().text = $"Castle Rights: {BinaryExtras.GetBinaryRepresentation(GameHandler.board.castleRights, 4)}";
-        infoUI[4].GetComponent<TMP_Text>().text = $"50 Move Counter: {GameHandler.board.fiftyMoveRule}";
-        infoUI[5].GetComponent<TMP_Text>().text = $"En Passant File: {GameHandler.board.enPassantFile}";
+        infoUI[3].GetComponent<TMP_Text>().text = $"Castle Rights: {BinaryExtras.GetBinaryRepresentation(GameHandler.board.state.castleRights, 4)}";
+        infoUI[4].GetComponent<TMP_Text>().text = $"50 Move Counter: {GameHandler.board.state.fiftyMoveRule}";
+        infoUI[5].GetComponent<TMP_Text>().text = $"En Passant File: {GameHandler.board.state.enPassantFile}";
         infoUI[6].GetComponent<TMP_Text>().text = $"Show Attack Bitboard: {(showAttackBitboard ? "True" : "False")}";
         infoUI[7].GetComponent<TMP_Text>().text = $"Show Pin Bitboard: {(showPinBitboard ? "True" : "False")}";
 
@@ -88,15 +88,41 @@ public class GUIHandler : MonoBehaviour
     }
 
     /// <summary> Updates UI elements about BOT. </summary>
-    public static void UpdateBotUI(double eval, int movesSearched, TimeSpan timeTaken)
+    public static void UpdateBotUI(Move move, double eval, int movesSearched, int searchDepth, int transpositions, int transpositionsUsed, TimeSpan timeTaken)
     {
-        evalUI[2].GetComponent<Image>().fillAmount = (Mathf.Clamp((float)eval, -1200, 1200) + 1200) / 2400;
-        evalUI[3].GetComponent<TMP_Text>().text = ((double)eval / 100).ToString("0.00");
-        evalUI[4].GetComponent<TMP_Text>().text = $"Bot: {(GameHandler.botMode == 0 ? "Off" : GameHandler.botMode == 1 ? "White" : GameHandler.botMode == 2 ? "Black" : "Both")}";
-        evalUI[5].GetComponent<TMP_Text>().text = $"Bot Depth: {Revi.searchDepth} ({Revi.searchDepth + 1})";
+        evalUI[13].GetChild(2).GetComponent<Image>().fillAmount = (Mathf.Clamp((float)eval, -1200, 1200) + 1200) / 2400;
+        evalUI[13].GetChild(3).GetComponent<TMP_Text>().text = $"{(eval >= 0 ? "+" : "")}{((double)eval / 100).ToString("0.00")}";
+        evalUI[1].GetComponent<TMP_Text>().text = $"Bot Mode: {(GameHandler.botMode == 0 ? "Off" : GameHandler.botMode == 1 ? "White" : GameHandler.botMode == 2 ? "Black" : "Both")}";
+        evalUI[2].GetComponent<TMP_Text>().text = $"Default Bot Depth: {Revi.searchDepth} ({Revi.searchDepth + 1})";
+        evalUI[3].GetComponent<TMP_Text>().text = $"Used Bot Depth: {searchDepth} ({searchDepth + 1})";
+        evalUI[4].GetComponent<TMP_Text>().text = $"Bot Capture Depth: {searchDepth + (searchDepth % 2 == 0 ? 2 : 1)} ({searchDepth + ((searchDepth % 2 == 0 ? 3 : 2))})";
+        evalUI[5].GetComponent<TMP_Text>().text = $"Dynamic Bot Depth: {GameHandler.useDynamicDepth}"; //cant disable yet lol
         evalUI[6].GetComponent<TMP_Text>().text = $"Moves Searched: {movesSearched}";
-        evalUI[7].GetComponent<TMP_Text>().text = $"Time Taken: {Math.Round(timeTaken.TotalSeconds, 2)}s";
-        evalUI[8].GetComponent<TMP_Text>().text = $"Time Per Move: {Math.Round(timeTaken.TotalMilliseconds / (movesSearched + 1), 3)}ms";
+        evalUI[7].GetComponent<TMP_Text>().text = $"Transpos Found: {transpositions}";
+        evalUI[8].GetComponent<TMP_Text>().text = $"Transpos Used: {transpositionsUsed}";
+        evalUI[9].GetComponent<TMP_Text>().text = $"Best Move: {Piece.AlgebraicNotation(move.startPos)} -> {Piece.AlgebraicNotation(move.endPos)}";
+        evalUI[10].GetComponent<TMP_Text>().text = $"Best Move Eval: {Math.Round(eval, 2)}";
+        evalUI[11].GetComponent<TMP_Text>().text = $"Time Taken: {Math.Round(timeTaken.TotalSeconds, 2)}s";
+        evalUI[12].GetComponent<TMP_Text>().text = $"Time Per Move: {Math.Round(timeTaken.TotalMilliseconds / (movesSearched + 1), 3)}ms";
+    }
+
+    /// <summary> Updates UI elements about BOT To Unknown Values. </summary>
+    public static void UpdateBotUINull()
+    {
+        evalUI[13].GetChild(2).GetComponent<Image>().fillAmount = 0.5f;
+        evalUI[13].GetChild(3).GetComponent<TMP_Text>().text = "???";
+        evalUI[1].GetComponent<TMP_Text>().text = $"Bot Mode: {(GameHandler.botMode == 0 ? "Off" : GameHandler.botMode == 1 ? "White" : GameHandler.botMode == 2 ? "Black" : "Both")}";
+        evalUI[2].GetComponent<TMP_Text>().text = $"Default Bot Depth: {Revi.searchDepth} ({Revi.searchDepth + 1})";
+        evalUI[3].GetComponent<TMP_Text>().text = $"Used Bot Depth: {Revi.searchDepth} ({Revi.searchDepth + 1})";
+        evalUI[4].GetComponent<TMP_Text>().text = $"Bot Capture Depth: {Revi.searchDepth + (Revi.searchDepth % 2 == 0 ? 2 : 1)} ({Revi.searchDepth + ((Revi.searchDepth % 2 == 0 ? 3 : 2))})";
+        evalUI[5].GetComponent<TMP_Text>().text = $"Dynamic Bot Depth: {GameHandler.useDynamicDepth}"; //cant disable yet lol
+        evalUI[6].GetComponent<TMP_Text>().text = $"Moves Searched: 0";
+        evalUI[7].GetComponent<TMP_Text>().text = $"Transpos Found: 0";
+        evalUI[8].GetComponent<TMP_Text>().text = $"Transpos Used: 0";
+        evalUI[9].GetComponent<TMP_Text>().text = $"Best Move: None";
+        evalUI[10].GetComponent<TMP_Text>().text = $"Best Move Eval: ???";
+        evalUI[11].GetComponent<TMP_Text>().text = $"Time Taken: 0s";
+        evalUI[12].GetComponent<TMP_Text>().text = $"Time Per Move: 0ms";
     }
 
     /// <summary> Updates piece UI elements. </summary>
@@ -198,8 +224,8 @@ public class GUIHandler : MonoBehaviour
     public static void ToggleEndGameUI(int state)
     {
         popupUI[1].gameObject.SetActive(state == 0 ? true : false);
-        popupUI[1].GetChild(2).GetComponent<TMP_Text>().text = endGameMessages[GameHandler.board.gameProgress];
-        if (state == 1) GameHandler.Instance.SetUpChessBoard(Board.defaultFen);
+        popupUI[1].GetChild(2).GetComponent<TMP_Text>().text = endGameMessages[GameHandler.board.state.gameState];
+        if (state == 1) GameHandler.Instance.SetUpChessBoard(Board.usedFen);
     }
 
     /// <summary> Toggles promotion ui, non 0 state updates selected promotion. </summary>

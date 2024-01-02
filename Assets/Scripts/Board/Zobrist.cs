@@ -60,14 +60,14 @@ public static class Zobrist
             }
         }
 
-        zobristKey ^= enPassantFile[board.enPassantFile];
+        zobristKey ^= enPassantFile[board.state.enPassantFile];
 
         if (!board.whiteTurn)
         {
             zobristKey ^= sideToMove;
         }
 
-        zobristKey ^= castlingRights[board.castleRights];
+        zobristKey ^= castlingRights[board.state.enPassantFile];
 
         return zobristKey;
     }
