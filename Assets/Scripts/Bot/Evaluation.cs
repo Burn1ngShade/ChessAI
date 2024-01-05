@@ -29,15 +29,20 @@ public static class Evaluation
 
         for (int i = 0; i < 64; i++)
         {
-            if ((board.pieceBitboard & (1UL << i)) == 0) continue; //no piece
+            /* Checks for piece at given position, i 
+            skipping to the next cycle of the loop if none found */
+            if ((board.pieceBitboard & (1UL << i)) == 0) continue; 
 
             int isWhite = Piece.IsWhite(board.board[i]) ? 1 : -1;
             int absType = Piece.AbsoluteType(board.board[i]);
 
             if (absType == 6)
             {
-                if (isWhite == 1) wPawns[i % 8].structure += (byte)(1 << i / 8);
-                else bPawns[i % 8].structure += (byte)(1 << i / 8);
+                /* If piece is white, white pawn structure of given file (x pos of piece) 
+                is added to at given rank of index (y position of piece),
+                before same is done to black.*/
+                if (isWhite == 1) wPawns[Piece.File(i)].structure += (byte)(1 << Piece.Rank(i));
+                else bPawns[Piece.File(i)].structure += (byte)(1 << Piece.Rank(i));
             }
 
             mgEval += (Piece.mgPieceValues[absType - 1] + Piece.mgPieceTables[absType - 1][isWhite == 1 ? BinaryExtras.FlipBitboardIndex(i) : i]) * isWhite;
@@ -157,10 +162,10 @@ public static class Evaluation
         int oppKingPosY = Piece.Rank(oppKingPos);
 
         //caculate distance of opponent king from centre, further is good!
-        mopUpScore += (Math.Max(3 - oppKingPosX, oppKingPosX - 4) + Math.Max(3 - oppKingPosY, oppKingPosY - 4)) * 8; //this value has to be higher to prevent king shuffling
+        mopUpScore += (Math.Max(3 - oppKingPosX, oppKingPosX - 4) + Math.Max(3 - oppKingPosY, oppKingPosY - 4)) * 4; //this value has to be higher to prevent king shuffling
 
         //caculate distance between 2 kings, closer is good!
-        mopUpScore += (14 - (Math.Abs(kingPosX - oppKingPosX) + Math.Abs(kingPosY - oppKingPosY))) * 20;
+        mopUpScore += (14 - (Math.Abs(kingPosX - oppKingPosX) + Math.Abs(kingPosY - oppKingPosY))) * 10;
 
         return mopUpScore;
     }

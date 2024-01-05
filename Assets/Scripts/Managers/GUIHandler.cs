@@ -10,12 +10,12 @@ public class GUIHandler : MonoBehaviour
 {
     static GUIHandler Instance;
 
-    static Transform pieceHolder;
+    static Transform pieceObjHolder;
     static Transform indicatorHolder;
 
-    static List<Transform> evalUI = new List<Transform>();
-    static List<Transform> infoUI = new List<Transform>();
-    static List<Transform> popupUI = new List<Transform>();
+    public static List<Transform> evalUI = new List<Transform>();
+    public static List<Transform> infoUI = new List<Transform>();
+    public static List<Transform> popupUI = new List<Transform>();
 
     static SpriteRenderer[] boardHighlights = new SpriteRenderer[3];
 
@@ -30,7 +30,7 @@ public class GUIHandler : MonoBehaviour
 
     private void Awake()
     {
-        pieceHolder = transform.GetChild(1);
+        pieceObjHolder = transform.GetChild(1);
         indicatorHolder = transform.GetChild(3);
 
         GameObject canvas = GameObject.Find("Canvas");
@@ -128,19 +128,19 @@ public class GUIHandler : MonoBehaviour
     /// <summary> Updates piece UI elements. </summary>
     public static void UpdatePieceUI()
     {
-        foreach (Transform child in pieceHolder)
+        foreach (Transform child in pieceObjHolder)
         {
             Destroy(child.gameObject);
         }
 
         for (int i = 0; i <= 63; i++)
         {
-            if (((GameHandler.board.wPieceBitboard & (ulong)(1UL << i)) != 0) || ((GameHandler.board.bPieceBitboard & (ulong)(1UL << i)) != 0))
+            if (((GameHandler.board.wPieceBitboard & (1UL << i)) != 0) || ((GameHandler.board.bPieceBitboard & (1UL << i)) != 0))
             {
                 GameObject g = new GameObject($"Piece {i}");
                 g.AddComponent<SpriteRenderer>().sprite = Instance.pieceSprites[GameHandler.board.board[i] - 1];
                 g.GetComponent<SpriteRenderer>().sortingOrder = 99;
-                g.transform.SetParent(pieceHolder);
+                g.transform.SetParent(pieceObjHolder);
                 g.transform.position = Board.GetWorldPos((byte)i);
                 g.transform.localScale = new Vector3(0.8f, 0.8f, 1);
             }
@@ -241,5 +241,15 @@ public class GUIHandler : MonoBehaviour
                 popupUI[0].GetChild(3).GetChild(i - 1).GetComponent<Image>().sprite = Instance.pieceSprites[i - 4 + (GameHandler.board.whiteTurn ? 0 : 6)];
             }
         }
+    }
+
+    /// <summary> updates bot popup ui. </summary>
+    public static void UpdateBotSettingsPopup(bool enabled)
+    {
+        popupUI[2].gameObject.SetActive(enabled);
+
+        popupUI[2].GetChild(3).GetComponent<TMP_Text>().text = $"Bot Depth: {Revi.searchDepth}";
+        popupUI[2].GetChild(4).GetComponent<TMP_Text>().text = $"Use Dynamic Depth: {GameHandler.useDynamicDepth}";
+        GUIHandler.UpdateBotUINull();
     }
 }

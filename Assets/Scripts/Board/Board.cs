@@ -12,8 +12,8 @@ using UnityEngine.UIElements;
 public class Board
 {
     public static string defaultFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w QKqk - 0 1"; //default starting pos in chess
-    public static string usedFen => defaultFen;
-    //public static string usedFen => "8/2KP/8/8/8/8/8/kq b - - 1 1"; //position loaded by chess engine
+    //public static string usedFen => defaultFen;
+    public static string usedFen => "8/2KP/8/8/8/8/8/kq b - - 1 1"; //position loaded by chess engine
 
     public byte[] board = new byte[64]; //actual values of board
 
@@ -232,8 +232,6 @@ public class Board
                 return moves[i];
             }
         }
-        Debug.Log(startPos + " : " + endPos);
-        Debug.Log(move + " : " + Piece.AlgebraicNotation(moves[0].startPos) + " : " + Piece.AlgebraicNotation(moves[0].endPos));
 
         return null;
     }
@@ -469,15 +467,19 @@ public class Board
     }
 }
 
+/*class responsible for all data
+regarding the state of the board */
 public class BoardState
 {
-    public byte fiftyMoveRule; //fifty moves = 100 ply (what i track)
+    //fifty moves = 100 ply (what 'turn' tracks)
+    public byte fiftyMoveRule;
     public byte castleRights;
-    public byte enPassantFile;
+    public byte enPassantFile; 
 
     public ulong zobristKey;
     public int gameState;
 
+    //last 'turn' king moved
     public int wLastKingMove;
     public int bLastKingMove;
 

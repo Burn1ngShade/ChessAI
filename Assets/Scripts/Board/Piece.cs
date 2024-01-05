@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Security;
 using UnityEngine;
 
 //class pertaining functinos related to pieces
@@ -43,14 +44,39 @@ public static class Piece
         return type > 6 ? type - 6 : type;
     }
 
+    //should in theory be faster than division so often
+    static readonly int[] rankLookup =
+    {
+        0, 0, 0, 0, 0, 0, 0, 0,
+        1, 1, 1, 1, 1, 1, 1, 1,
+        2, 2, 2, 2, 2, 2, 2, 2,
+        3, 3, 3, 3, 3, 3, 3, 3,
+        4, 4, 4, 4, 4, 4, 4, 4,
+        5, 5, 5, 5, 5, 5, 5, 5,
+        6, 6, 6, 6, 6, 6, 6, 6,
+        7, 7, 7, 7, 7, 7, 7, 7,
+    };
+
     public static int Rank(int pos) //y
     {
-        return pos / 8;
+        return rankLookup[pos];
     }
+
+    static readonly int[] fileLookup =
+    {
+        0, 1, 2, 3, 4, 5, 6, 7,
+        0, 1, 2, 3, 4, 5, 6, 7,
+        0, 1, 2, 3, 4, 5, 6, 7,
+        0, 1, 2, 3, 4, 5, 6, 7,
+        0, 1, 2, 3, 4, 5, 6, 7,
+        0, 1, 2, 3, 4, 5, 6, 7,
+        0, 1, 2, 3, 4, 5, 6, 7,
+        0, 1, 2, 3, 4, 5, 6, 7,
+    };
 
     public static int File(int pos) //x
     {
-        return pos % 8;
+        return fileLookup[pos];
     }
 
     static readonly char[] Letters = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};

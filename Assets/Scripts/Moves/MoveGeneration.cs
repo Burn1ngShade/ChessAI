@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Resources;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public static class MoveGeneration
@@ -76,7 +77,6 @@ public static class MoveGeneration
                 if (absType == 2) b.legalMoves.oppQueen++;
                 continue;
             }
-
             if (absType == 1)
             {
                 if ((kingInvalidSquares & (1UL << m.endPos)) != 0)
@@ -107,9 +107,9 @@ public static class MoveGeneration
                         continue;
                     }
 
-                    (int x, int y) k = (b.friendlyKingPos % 8, b.friendlyKingPos / 8);
-                    (int x, int y) s = (m.startPos % 8, m.startPos / 8);
-                    (int x, int y) e = (m.endPos % 8, m.endPos / 8);
+                    (int x, int y) k = (Piece.File(b.friendlyKingPos), Piece.Rank(b.friendlyKingPos));
+                    (int x, int y) s = (Piece.File(m.startPos), Piece.Rank(m.startPos));
+                    (int x, int y) e = (Piece.File(m.endPos), Piece.Rank(m.endPos));
 
                     if (!((s.x > k.x ? 0 : s.x == k.x ? 1 : 2) == (e.x > k.x ? 0 : e.x == k.x ? 1 : 2) &&
                     (s.y > k.y ? 0 : s.y == k.y ? 1 : 2) == (e.y > k.y ? 0 : e.y == k.y ? 1 : 2)))
@@ -189,21 +189,23 @@ public static class MoveGeneration
 
             bool isWhite = Piece.IsWhite(b.board[move.startPos]);
 
+            /* if piece is white, and the bitboard does not already have a 1 at the square being attacked, 
+            1 added at position, before checking the same for black */
             if (isWhite && (b.wAttackBitboard & (1UL << move.endPos)) == 0) b.wAttackBitboard += 1UL << move.endPos;
-            if (!isWhite && (b.bAttackBitboard & (1UL << move.endPos)) == 0) b.bAttackBitboard += 1UL << move.endPos;
+            else if (!isWhite && (b.bAttackBitboard & (1UL << move.endPos)) == 0) b.bAttackBitboard += 1UL << move.endPos;
         }
 
         b.attackBitboard = b.wAttackBitboard | b.bAttackBitboard;
 
         //pins
         byte kingPos = b.whiteTurn ? b.whiteKingPos : b.blackKingPos;
-        (int x, int y) kp = (kingPos % 8, kingPos / 8);
+        (int x, int y) kp = (Piece.File(kingPos), Piece.Rank(kingPos));
 
         for (int k = 0; k < 64; k++)
         {
             if ((b.pieceBitboard & (1UL << k)) == 0) continue;
 
-            (int x, int y) pp = (k % 8, k / 8);
+            (int x, int y) pp = (Piece.File(k), Piece.Rank(k));
 
             if (Piece.IsWhite(b.board[k]) == b.whiteTurn) continue;
 
@@ -317,12 +319,12 @@ public static class MoveGeneration
         if (newIndex < 0 || newIndex > 63) return; //outside bounds of b
         if (b.board[newIndex] == 0)
         {
-            if (newIndex / 8 == 0 || newIndex / 8 == 7)
+            if (Piece.Rank(newIndex) == 0 || Piece.Rank(newIndex) == 7)
             {
                 for (int i = 2; i < 6; i++) AddMove(b, ref moves, new Move(index, (byte)newIndex, (byte)i));
             }
             else AddMove(b, ref moves, new Move(index, (byte)newIndex));
-            if ((index / 8 == 1 && isWhite == 1) || (index / 8 == 6 && isWhite == -1))
+            if ((Piece.Rank(index) == 1 && isWhite == 1) || (Piece.Rank(index) == 6 && isWhite == -1))
             {
                 newIndex += 8 * isWhite;
                 if (b.board[newIndex] == 0) AddMove(b, ref moves, new Move(index, (byte)newIndex));
@@ -343,7 +345,7 @@ public static class MoveGeneration
 
             if (b.board[newIndex] != 0 && Piece.IsWhite(b.board[newIndex]) != Piece.IsWhite(b.board[index]))
             {
-                if (newIndex / 8 == 0 || newIndex / 8 == 7)
+                if (Piece.Rank(newIndex) == 0 || Piece.Rank(newIndex) == 7)
                 {
                     for (int j = 2; j < 6; j++) AddMove(b, ref moves, new Move(index, (byte)newIndex, (byte)j));
                 }

@@ -26,7 +26,7 @@ public class GameHandler : MonoBehaviour
 
     private void Start()
     {
-        Revi.openingBook = OpeningBookCreator.PGNToOpeningBookFile("Perfect2023OpeningBook.txt");
+        StartCoroutine(OpeningBookCreator.PGNToOpeningBookFile("Perfect2023OpeningBook.txt"));
         SetUpChessBoard(Board.usedFen);
     }
 
@@ -209,5 +209,36 @@ public class GameHandler : MonoBehaviour
 
         GUIHandler.UpdateBotUINull();
         GUIHandler.UpdateBoardUI(new List<Move>(), GUIHandler.ClearColourHighlights());
+    }
+
+    /// <summary> Updates bot settings from popup menu. </summary>
+    public void EditBotDepth(int editBy)
+    {
+        Revi.searchDepth = Math.Clamp(Revi.searchDepth + editBy, 2, 12);
+        GUIHandler.UpdateBotSettingsPopup(true);
+    }
+
+    public void ToggleDynamicBotDepth()
+    {
+        useDynamicDepth = !useDynamicDepth;
+        GUIHandler.UpdateBotSettingsPopup(true);
+    }
+
+    /// <summary> Updates bot settings to fast bot preset. </summary>
+    public void FastBotSettings()
+    {
+        Revi.searchDepth = 3;
+        useDynamicDepth = false;
+
+        GUIHandler.UpdateBotUINull();
+    }
+
+    /// <summary> Updates bot settings to smart bot preset. </summary>
+    public void SmartBotSettings()
+    {
+        Revi.searchDepth = 4;
+        useDynamicDepth = true;
+
+        GUIHandler.UpdateBotUINull();
     }
 }
