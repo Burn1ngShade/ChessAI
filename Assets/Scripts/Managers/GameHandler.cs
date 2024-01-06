@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Net;
 using UnityEngine;
 
 /// <summary> Responsible for handling user and ai interaction with chess game </summary>
@@ -9,15 +11,18 @@ public class GameHandler : MonoBehaviour
 
     public static Board board;
 
-    enum GameState { Playing, Promotion, Over }
-    GameState gameState = GameState.Playing;
+    public enum BotMode { Off, White, Black, Both }
+    public static BotMode botMode;
+
+    public enum GameState { Playing, Promotion, Over }
+    public static GameState gameState = GameState.Playing;
 
     byte selectedPiece = byte.MaxValue;
     byte lastSelectedSquare = byte.MaxValue;
     public static byte selectedPromotion = byte.MaxValue;
 
-    public static int botMode = 0;
     public static bool useDynamicDepth = true;
+    public static bool inMenu = false;
 
     void Awake()
     {
@@ -26,7 +31,7 @@ public class GameHandler : MonoBehaviour
 
     private void Start()
     {
-        StartCoroutine(OpeningBookCreator.PGNToOpeningBookFile("Perfect2023OpeningBook.txt"));
+        Revi.openingBook = new OpeningBook(File.ReadAllText("Assets/Book.txt"));
         SetUpChessBoard(Board.usedFen);
     }
 
@@ -55,24 +60,30 @@ public class GameHandler : MonoBehaviour
             GUIHandler.UpdateUI();
             if (!GUIHandler.showPinBitboard) GUIHandler.UpdateBoardHighlights(2, GUIHandler.ClearColourHighlights());
         }
+        else if (Input.GetKeyDown(KeyCode.F))
+        {
+            GUIHandler.showPossibleAttackBitboard = !GUIHandler.showPossibleAttackBitboard;
+            GUIHandler.UpdateUI();
+            if (!GUIHandler.showPossibleAttackBitboard) GUIHandler.UpdateBoardHighlights(3, GUIHandler.ClearColourHighlights());
+        }
         else if (Input.GetKeyDown(KeyCode.Alpha1))
         {
-            botMode = 0;
+            botMode = (BotMode)0;
             GUIHandler.UpdateBotUINull();
         }
         else if (Input.GetKeyDown(KeyCode.Alpha2))
         {
-            botMode = 1;
+            botMode = (BotMode)1;
             GUIHandler.UpdateBotUINull();
         }
         else if (Input.GetKeyDown(KeyCode.Alpha3))
         {
-            botMode = 2;
+            botMode = (BotMode)2;
             GUIHandler.UpdateBotUINull();
         }
         else if (Input.GetKeyDown(KeyCode.Alpha4))
         {
-            botMode = 3;
+            botMode = (BotMode)3;
             GUIHandler.UpdateBotUINull();
         }
         else if (Input.GetKeyDown(KeyCode.K))
@@ -97,6 +108,8 @@ public class GameHandler : MonoBehaviour
     /// <summary> Updates game interaction of the chess engine. </summary>
     void UpdateGameInteraction()
     {
+        if (inMenu) return; 
+
         switch (gameState)
         {
             case GameState.Playing:
@@ -107,8 +120,8 @@ public class GameHandler : MonoBehaviour
                     return;
                 }
 
-                if (board.whiteTurn && (botMode == 1 || botMode == 3)) HandleBotGameplay();
-                else if (!board.whiteTurn && (botMode == 2 || botMode == 3)) HandleBotGameplay();
+                if (board.whiteTurn && (botMode == BotMode.White || botMode == BotMode.Both)) HandleBotGameplay();
+                else if (!board.whiteTurn && (botMode == BotMode.Black || botMode == BotMode.Both)) HandleBotGameplay();
                 else HandleGameplay();
                 break;
             case GameState.Promotion:
@@ -160,7 +173,6 @@ public class GameHandler : MonoBehaviour
                         }
 
                         board.MakeMove(move);
-                        Debug.Log(Evaluation.Evaluate(board));
                     }
 
 
@@ -169,11 +181,6 @@ public class GameHandler : MonoBehaviour
                     selectedPiece = byte.MaxValue;
                 }
             }
-        }
-        else if (Input.GetKeyDown(KeyCode.U)) //undo move
-        {
-            board.UndoMove();
-            GUIHandler.UpdateBoardUI(new List<Move>(), GUIHandler.GenerateLastMoveHighlight());
         }
     }
 
@@ -189,7 +196,6 @@ public class GameHandler : MonoBehaviour
             selectedPromotion = byte.MaxValue;
 
             board.MakeMove(move);
-            Debug.Log(Evaluation.Evaluate(board));
 
             selectedPiece = byte.MaxValue;
 
@@ -212,17 +218,26 @@ public class GameHandler : MonoBehaviour
     }
 
     /// <summary> Updates bot settings from popup menu. </summary>
-    public void EditBotDepth(int editBy)
+    public void AdjustBotDepth(int magnitude)
     {
-        Revi.searchDepth = Math.Clamp(Revi.searchDepth + editBy, 2, 12);
+        Revi.searchDepth = Math.Clamp(Revi.searchDepth + magnitude, 2, 12);
         GUIHandler.UpdateBotSettingsPopup(true);
     }
 
+    /// <summary> Updates bot mode from popup menu. </summary>
+    public void AdjustBotMode(int magnitude)
+    {
+        botMode = (BotMode)Math.Clamp((int)botMode + magnitude, 0, 3);
+        GUIHandler.UpdateBotSettingsPopup(true);
+    }
+
+    /// <summary> Toggles dynamic bot depth from popup menu. </summary>
     public void ToggleDynamicBotDepth()
     {
         useDynamicDepth = !useDynamicDepth;
         GUIHandler.UpdateBotSettingsPopup(true);
     }
+
 
     /// <summary> Updates bot settings to fast bot preset. </summary>
     public void FastBotSettings()
@@ -240,5 +255,19 @@ public class GameHandler : MonoBehaviour
         useDynamicDepth = true;
 
         GUIHandler.UpdateBotUINull();
+    }
+
+    /// <summary> Resets game board. </summary>
+    public void ResetGame()
+    {
+        SetUpChessBoard(Board.usedFen);
+    }
+
+    /// <summary> Resets game board. </summary>
+    public void UndoMove()
+    {
+        gameState = GameState.Playing;
+        board.UndoMove();
+        GUIHandler.UpdateBoardUI(new List<Move>(), GUIHandler.GenerateLastMoveHighlight());
     }
 }

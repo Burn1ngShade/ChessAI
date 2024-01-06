@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Security;
+using Unity.VisualScripting;
 using UnityEngine;
 
 //class pertaining functinos related to pieces
@@ -31,7 +32,7 @@ public static class Piece
     public static bool IsWhite(byte type) { return type <= 6; }
 
     //value of piece for evaluation
-    public static int EvalValue(byte type)
+    public static int MaterialValue(byte type)
     {
         if (type == 0) return 0;
         if (type > 6) type -= 6;
@@ -80,13 +81,19 @@ public static class Piece
     }
 
     static readonly char[] Letters = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
+    static string letters = "abcdefgh";
     public static string AlgebraicNotation(int pos)
     {
         return $"{Letters[File(pos)]}{Rank(pos) + 1}";
     }
 
-    public static readonly int[] mgPieceValues = { 0, 1025, 477, 365, 337, 92 };
-    public static readonly int[] egPieceValues = { 0, 936, 512, 297, 281, 104 };
+    public static int PosFromAlgebraicNotation(string notation)
+    {
+        return (int.Parse(notation[1].ToString()) - 1) * 8 + letters.IndexOf(notation[0]); 
+    }
+
+    public static readonly int[] mgPieceValues = { 0, 1025, 477, 365, 337, 100 };
+    public static readonly int[] egPieceValues = { 0, 936, 512, 297, 281, 110 };
     static readonly int[] materialPieceValues = { 0, 9, 5, 3, 3, 1 }; //use for caculating position between middle and endgame
 
     public static int[][] mgPieceTables = new int[][] { //ordered king, queen, rook, bishop, knight, pawns

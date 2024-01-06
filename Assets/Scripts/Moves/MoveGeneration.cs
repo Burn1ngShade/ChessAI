@@ -134,7 +134,8 @@ public static class MoveGeneration
                 }
             }
 
-            if (Piece.EvalValue(b.board[m.endPos]) >= 3) b.majorCapture = true;
+            if (Piece.MaterialValue(b.board[m.endPos]) >= 3) b.majorEvent = true;
+            else if (m.type >= 2 && m.type <= 5) b.majorEvent = true;
 
             validMoves.Add(newMoves[i]);
             b.legalMoves.friendlyAll++;
@@ -162,11 +163,14 @@ public static class MoveGeneration
         b.checkBitboard = 0;
         b.kingBlockerBitboard = 0;
 
+        b.wPossbileAttackBitboard = 0;
+        b.bPossbileAttackBitboard = 0;
+
         checkState = 0;
         checker = 0;
 
         b.legalMoves = (0, 0, 0, 0);
-        b.majorCapture = false;
+        b.majorEvent = false;
         b.isCheck = false;
     }
 
@@ -343,6 +347,9 @@ public static class MoveGeneration
 
             if (b.whiteTurn != (isWhite == 1) && ((b.kingBlockerBitboard & (1UL << newIndex)) == 0)) b.kingBlockerBitboard += 1UL << newIndex;
 
+            if (isWhite == 1 && !BinaryExtras.BitboardContains(b.wPossbileAttackBitboard, newIndex)) b.wPossbileAttackBitboard += 1UL << newIndex;
+            else if (isWhite != 1 && !BinaryExtras.BitboardContains(b.bPossbileAttackBitboard, newIndex)) b.bPossbileAttackBitboard += 1UL << newIndex;
+
             if (b.board[newIndex] != 0 && Piece.IsWhite(b.board[newIndex]) != Piece.IsWhite(b.board[index]))
             {
                 if (Piece.Rank(newIndex) == 0 || Piece.Rank(newIndex) == 7)
@@ -375,6 +382,10 @@ public static class MoveGeneration
             if (newIndex < 0 || newIndex > 63 || index % 8 + knightXOffsets[i] > 7 || index % 8 + knightXOffsets[i] < 0) continue; //outside bounds of board or if overflow
 
             if (b.whiteTurn != Piece.IsWhite(b.board[index]) && ((b.kingBlockerBitboard & (1UL << newIndex)) == 0)) b.kingBlockerBitboard += 1UL << newIndex;
+
+            if (Piece.IsWhite(b.board[index]) && !BinaryExtras.BitboardContains(b.wPossbileAttackBitboard, newIndex)) b.wPossbileAttackBitboard += 1UL << newIndex;
+            else if (!Piece.IsWhite(b.board[index]) && !BinaryExtras.BitboardContains(b.bPossbileAttackBitboard, newIndex)) b.bPossbileAttackBitboard += 1UL << newIndex;
+
             if (b.board[newIndex] == 0 || (Piece.IsWhite(b.board[newIndex]) != Piece.IsWhite(b.board[index])))
             {
                 AddMove(b, ref moves, new Move(index, (byte)newIndex));
@@ -396,6 +407,9 @@ public static class MoveGeneration
                 if (newIndex < 0 || newIndex > 63) break; //outside bounds of board
 
                 if (b.whiteTurn != Piece.IsWhite(b.board[index]) && ((b.kingBlockerBitboard & (1UL << newIndex)) == 0)) b.kingBlockerBitboard += 1UL << newIndex;
+
+                if (Piece.IsWhite(b.board[index]) && !BinaryExtras.BitboardContains(b.wPossbileAttackBitboard, newIndex)) b.wPossbileAttackBitboard += 1UL << newIndex;
+                else if (!Piece.IsWhite(b.board[index]) && !BinaryExtras.BitboardContains(b.bPossbileAttackBitboard, newIndex)) b.bPossbileAttackBitboard += 1UL << newIndex;
 
                 if (b.board[newIndex] != 0)
                 {

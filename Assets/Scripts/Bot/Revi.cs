@@ -2,16 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-/* main weakness rn:
-have it check best moves from last round first 
-punish for losing castling rights
-give evaulation the move node list
-est rating 1050
-
-also just not very fast :(
-*/
-
-
 public static class Revi
 {
     //search details
@@ -19,13 +9,11 @@ public static class Revi
     public const int TranspositionChangeCap = 100;
     public const int SearchDepthIncreaseCap = 1000; //will rerun with increased search cap if not exceded
 
-    public static int searchDepth = 3; //this number is one lower than the actual depth (4 is really searching 5 moves)
+    public static int searchDepth = 4; //this number is one lower than the actual depth (4 is really searching 5 moves)
     static int searchDepthMaxExtend;
 
-    static bool maximizingPlayer;
     static TranspositionTable transpositions;
-
-    public static Dictionary<ulong, List<string>> openingBook = new Dictionary<ulong, List<string>>();
+    public static OpeningBook openingBook;
 
     //tracked stats (useful for debug, no effect on algorithm)
 
@@ -40,11 +28,12 @@ public static class Revi
 
         s.Start();
 
-        if (openingBook.ContainsKey(board.state.zobristKey))
+        if (openingBook.TryGetBookMove(board, out string moveString))
         {
-            string openingBookMove = openingBook[board.state.zobristKey][UnityEngine.Random.Range(0, openingBook[board.state.zobristKey].Count)];
-            UnityEngine.Debug.Log($"Move {openingBookMove} Selected Of {openingBook[board.state.zobristKey].Count} Book Moves, Time Taken {s.ElapsedMilliseconds}ms");
-            return board.GetMove(openingBookMove);
+            UnityEngine.Debug.Log($"Book Move Found: {moveString}");
+            Move m = board.GetMove(moveString);
+            GUIHandler.UpdateBotUI(m, 0, 0, 0, 0, 0, TimeSpan.Zero);
+            return m;
         }
 
         moveSearchCount = 0;
@@ -53,9 +42,9 @@ public static class Revi
         transpositions = new TranspositionTable(searchDepth);
 
         //always end with the opponents move being considered, this stops the ai sacrificing a piece taking a knight or smthing without realising it can be captured back
-        searchDepthMaxExtend = searchDepth % 2 == 0 ? -1 : -0;
+        searchDepthMaxExtend = searchDepth % 2 == 0 ? -2 : -1;
 
-        (double eval, MoveNode move) move = AlphaBeta3(new Board(board), searchDepth, double.MinValue, double.MaxValue, board.whiteTurn);
+        (double eval, MoveNode move) move = AlphaBeta4(new Board(board), searchDepth, double.MinValue, double.MaxValue, board.whiteTurn, new List<Move>());
 
         s.Stop();
 
@@ -66,20 +55,27 @@ public static class Revi
             return m;
         }
 
-        Move chosenMove = board.GetPlayerMoves()[move.move.index];
+        UnityEngine.Debug.Log($"Moves Searched: {moveSearchCount}, Time Taken: {s.ElapsedMilliseconds}ms\nEval: {move.eval}, Index: {move.move.index}, Depth: {move.move.depth}\nBranches Prunned: {branchesPrunned}, Potential Prunnes: {potentialBranches}");
 
-        UnityEngine.Debug.Log($"Moves Searched: {moveSearchCount}, Time Taken: {s.ElapsedMilliseconds}ms\nEval: {move.eval}, Index: {move.move.index}\nBranches Prunned: {branchesPrunned}, Potential Prunnes: {potentialBranches}");
+        Move chosenMove = MoveOrdering.BasicOrderedMoves(board)[move.move.index];
+
         GUIHandler.UpdateBotUI(chosenMove, move.eval, moveSearchCount, searchDepth, potentialBranches, branchesPrunned, s.Elapsed);
 
         return chosenMove;
     }
 
-    static (double eval, MoveNode index) AlphaBeta3(Board board, int depth, double alpha, double beta, bool whiteToPlay)
+    static (double eval, MoveNode index) AlphaBeta4(Board board, int depth, double alpha, double beta, bool whiteToPlay, List<Move> moves)
     {
         //reached end of depth or game final state been reached, so just evaluate current position (quite eval)
-        if (board.state.gameState != 0 || (depth <= 0 && !board.majorCapture) || depth < searchDepthMaxExtend) return (Evaluation.Evaluate(board), new MoveNode(-int.MaxValue, 0, null));
+        if (board.state.gameState != 0 || (depth <= 0 && !board.majorEvent) || depth <= searchDepthMaxExtend)
+        {
+            return (Evaluation.Evaluate(board, moves), new MoveNode(-int.MaxValue, 0, null));
+        }
 
-        if (board.doublePreviousPositions.Contains(board.state.zobristKey)) return (0, new MoveNode(-int.MaxValue, 0, null)); //if position a repeat assumed to be a draw
+        if (moves.Count != 0 && board.doublePreviousPositions.Contains(board.state.zobristKey))
+        {
+            return (0, new MoveNode(-int.MaxValue, 0, null)); //if position a repeat assumed to be a draw
+        }
 
         if (depth > 0 && transpositions.Contains(board.state.zobristKey, depth)) //if pos prev found
         {
@@ -104,13 +100,14 @@ public static class Revi
         {
             double value = double.MinValue;
 
-            foreach (Move move in board.GetPlayerMoves())
+            foreach (Move move in MoveOrdering.BasicOrderedMoves(board))
             {
                 moveSearchCount++;
 
                 board.MakeMove(move);
-
-                (double value, MoveNode node) newValue = AlphaBeta3(board, depth - 1, alpha, beta, false);
+                moves.Add(move);
+                (double value, MoveNode node) newValue = AlphaBeta4(board, depth - 1, alpha, beta, false, moves);
+                moves.RemoveAt(moves.Count - 1);
                 if (value < newValue.value)
                 {
                     chosenIndex = new MoveNode(index, newValue.node.depth, newValue.node);
@@ -135,13 +132,14 @@ public static class Revi
         {
             double value = double.MaxValue;
 
-            foreach (Move move in board.GetPlayerMoves())
+            foreach (Move move in MoveOrdering.BasicOrderedMoves(board))
             {
                 moveSearchCount++;
 
                 board.MakeMove(move);
-
-                (double value, MoveNode node) newValue = AlphaBeta3(board, depth - 1, alpha, beta, true);
+                moves.Add(move);
+                (double value, MoveNode node) newValue = AlphaBeta4(board, depth - 1, alpha, beta, true, moves);
+                moves.RemoveAt(moves.Count - 1);
                 if (value > newValue.value)
                 {
                     chosenIndex = new MoveNode(index, newValue.node.depth, newValue.node);

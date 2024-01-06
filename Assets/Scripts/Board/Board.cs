@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
+using TMPro.EditorUtilities;
 using Unity.VisualScripting;
 using UnityEditor;
 using UnityEditor.PackageManager;
@@ -11,9 +12,13 @@ using UnityEngine.UIElements;
 //the logic for a board state in chess game
 public class Board
 {
-    public static string defaultFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w QKqk - 0 1"; //default starting pos in chess
     //public static string usedFen => defaultFen;
-    public static string usedFen => "8/2KP/8/8/8/8/8/kq b - - 1 1"; //position loaded by chess engine
+    public static string usedFen => DefaultFen; //position loaded by chess engine
+
+    public const string DefaultFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w QKqk - 0 1"; //default starting pos in chess
+    public const string KingPawnTestFen = "8/2KP/8/8/8/8/8/kq b - - 1 1";
+    public const string WhiteKingPawnTestFen = "KQ/8/8/8/8/8/2kp/8 w - - 0 1";
+    public const string RookTestFen = "RK/8/8/8/k/8/8/8 w - - 0 1";
 
     public byte[] board = new byte[64]; //actual values of board
 
@@ -34,13 +39,16 @@ public class Board
     public ulong oppAttackBitboard => whiteTurn ? bAttackBitboard : wAttackBitboard;
 
     public (int friendlyAll, int friendlyQueen, int oppAll, int oppQueen) legalMoves;
-    public bool majorCapture;
+    public bool majorEvent;
     public bool isCheck;
 
     //check stuff
     public ulong pinBitboard = 0;
     public ulong checkBitboard = 0;
     public ulong kingBlockerBitboard = 0;
+
+    public ulong wPossbileAttackBitboard = 0;
+    public ulong bPossbileAttackBitboard = 0;
 
     public List<Move> moves = new List<Move>();
     public Stack<Move> previousMoves = new Stack<Move>();
@@ -52,70 +60,14 @@ public class Board
     public BoardState state = new BoardState();
 
     //game data
-    public int turn { get; private set; } = 0;
+    public int turn = 0;
     public bool whiteTurn => turn % 2 == 0;
 
-    static readonly Dictionary<char, byte> fenPieceLookup = new Dictionary<char, byte>() {
-        {'K', 1}, {'Q', 2}, {'R', 3}, {'B', 4}, {'N', 5}, {'P', 6},
-        {'k', 7}, {'q', 8}, {'r', 9}, {'b', 10}, {'n', 11}, {'p', 12},
-    };
-
-    static readonly Dictionary<byte, char> reversedFenPieceLookup = new Dictionary<byte, char>() {
-    {1, 'K'}, {2, 'Q'}, {3, 'R'}, {4, 'B'}, {5, 'N'}, {6, 'P'},
-    {7, 'k'}, {8, 'q'}, {9, 'r'}, {10, 'b'}, {11, 'n'}, {12, 'p'},
-    };
-
     //constructors 
-    public Board(string fenPosition)
-    {
-        string[] splitFen = fenPosition.Split(' ');
 
-        int boardCol = 0;
-        int boardRow = 7;
+    public Board() { }
 
-        foreach (char c in splitFen[0])
-        {
-            if (c == '/')
-            {
-                boardCol = 0;
-                boardRow--;
-
-                if (boardRow < 0)
-                {
-                    break;
-                }
-            }
-            else if (int.TryParse(c.ToString(), out int cResult))
-            {
-                boardCol += cResult;
-            }
-            else
-            {
-                if (!fenPieceLookup.ContainsKey(c) || boardCol > 7) continue;
-
-                board[boardRow * 8 + boardCol] = fenPieceLookup[c];
-                boardCol++;
-            }
-        }
-
-        if (splitFen.Length > 2)
-        {
-            state.castleRights = (byte)(splitFen[2].Contains('Q') ? 0 : 8);
-            state.castleRights += (byte)(splitFen[2].Contains('q') ? 0 : 4);
-            state.castleRights += (byte)(splitFen[2].Contains('K') ? 0 : 2);
-            state.castleRights += (byte)(splitFen[2].Contains('k') ? 0 : 1);
-        }
-        if (splitFen.Length > 3 && splitFen[3][0] != '-')
-        {
-            state.enPassantFile = byte.Parse(splitFen[3]);
-        }
-        if (splitFen.Length > 4) turn = int.Parse(splitFen[4]);
-
-        state.zobristKey = Zobrist.CalculateZobristKey(this);
-        previousPositions.Add(state.zobristKey);
-
-        this.moves = MoveGeneration.GenerateMoves(this);
-    }
+    public Board(string fen) : this(ChessExtras.BoardFromFenString(fen)) { }
 
     public Board(Board b)
     {
@@ -135,6 +87,9 @@ public class Board
         kingBlockerBitboard = b.kingBlockerBitboard;
         checkBitboard = b.checkBitboard;
 
+        wPossbileAttackBitboard = b.wPossbileAttackBitboard;
+        bPossbileAttackBitboard = b.bPossbileAttackBitboard;
+
         state = new BoardState(b.state);
 
         for (int i = 0; i < b.moves.Count; i++) moves.Add(new Move(b.moves[i]));
@@ -143,35 +98,6 @@ public class Board
         doublePreviousPositions = new HashSet<ulong>(b.doublePreviousPositions);
 
         turn = b.turn;
-    }
-
-    public string ToFenPosition()
-    {
-        string fenPosition = "";
-
-        int space = 0;
-
-        for (int y = 7; y >= 0; y--)
-        {
-            for (int x = 0; x <= 7; x++)
-            {
-                if (board[y * 8 + x] == 0) space++;
-                else
-                {
-                    if (space != 0) fenPosition += space.ToString();
-                    space = 0;
-                    fenPosition += reversedFenPieceLookup[board[y * 8 + x]];
-                }
-            }
-            if (space != 0)
-            {
-                fenPosition += space.ToString();
-                space = 0;
-            }
-            if (y != 0) fenPosition += "/";
-        }
-
-        return fenPosition;
     }
 
     //gets index position in world
@@ -195,28 +121,6 @@ public class Board
         return moves.Find(m => m.GetHashCode() == move.GetHashCode()); //so it has type data 
     }
 
-    public List<Move> GetPlayerMoves()
-    {
-        List<Move> m = new List<Move>();
-
-        int maxValue = 1;
-
-        int value;
-        for (int i = 0; i < moves.Count; i++)
-        {
-            value = Piece.EvalValue(board[moves[i].endPos]);
-
-            if (maxValue <= value)
-            {
-                maxValue = value;
-                m.Insert(0, moves[i]);
-            }
-            if (Piece.IsWhite(board[moves[i].startPos]) == whiteTurn) m.Add(moves[i]);
-        }
-
-        return m;
-    }
-
     public Move GetMove(string move)
     {
         move = move.Replace(" ", "");
@@ -224,7 +128,6 @@ public class Board
         string startPos = move.Substring(0, 2);
         string endPos = move.Substring(2, 2);
 
-        List<Move> moves = GetPlayerMoves();
         for (int i = 0; i < moves.Count; i++)
         {
             if (Piece.AlgebraicNotation(moves[i].startPos) == startPos && Piece.AlgebraicNotation(moves[i].endPos) == endPos)
@@ -247,9 +150,6 @@ public class Board
         int offset = isWhite ? 0 : 56;
 
         if (move.capturePiece != 0) state.zobristKey ^= Zobrist.piecesArray[move.capturePiece - 1, move.endPos]; //remove capture piece
-
-        if (move.piece == 7) state.bLastKingMove = turn + 1;
-        else if (move.piece == 1) state.wLastKingMove = turn + 1;
 
         state.zobristKey ^= Zobrist.enPassantFile[state.enPassantFile];
 
@@ -479,10 +379,6 @@ public class BoardState
     public ulong zobristKey;
     public int gameState;
 
-    //last 'turn' king moved
-    public int wLastKingMove;
-    public int bLastKingMove;
-
     public BoardState()
     {
         this.fiftyMoveRule = 100;
@@ -491,9 +387,6 @@ public class BoardState
 
         this.zobristKey = 0;
         this.gameState = 0;
-
-        this.wLastKingMove = 0;
-        this.bLastKingMove = 0;
     }
 
     public BoardState(BoardState state)
@@ -504,8 +397,5 @@ public class BoardState
 
         zobristKey = state.zobristKey;
         gameState = state.gameState;
-
-        wLastKingMove = state.wLastKingMove;
-        bLastKingMove = state.bLastKingMove;
     }
 }

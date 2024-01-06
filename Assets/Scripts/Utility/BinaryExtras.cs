@@ -10,7 +10,7 @@ public static class BinaryExtras
     {
         string binary = Convert.ToString((long)value, 2);
         string padding = new string('0', Math.Max(formatLength - binary.Length, 0));
-        return $"0b{binary}{padding}";
+        return $"0b{padding}{binary}";
     }
 
     public static double PopCount(ulong value)
@@ -38,5 +38,15 @@ public static class BinaryExtras
     public static int FlipBitboardIndex(int index)
     {
         return (index)^56;
+    }
+
+    public static bool BitboardContains(ulong bitboard, int index)
+    {
+        return (bitboard & (1UL << index)) != 0;
+    }
+
+    public static bool ByteContains(byte b, int index)
+    {
+        return (b & (1 << index)) != 0;
     }
 }

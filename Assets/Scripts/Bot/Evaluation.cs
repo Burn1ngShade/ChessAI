@@ -7,7 +7,7 @@ public static class Evaluation
 {
     //horizon effect is hitting
 
-    public static double Evaluate(Board board)
+    public static double Evaluate(Board board, List<Move> moves)
     {
         if (board.state.gameState != 0) //game finished
         {
@@ -49,14 +49,17 @@ public static class Evaluation
             egEval += (Piece.egPieceValues[absType - 1] + Piece.egPieceTables[absType - 1][isWhite == 1 ? BinaryExtras.FlipBitboardIndex(i) : i]) * isWhite;
         }
 
-        double interpEval = (interpFactor * mgEval) + ((1 - interpFactor) * egEval);
+        /* Midgame value is multiplied by interpFactor (midgame weight), and 
+        added to the endgame value multiplied by 1 - interpFactor (endgame weight)
+        resulting in a weighted average of the two values. */
+        double eval = (interpFactor * mgEval) + ((1 - interpFactor) * egEval);
 
         //mobility
 
         if (!board.isCheck)
         {
-            if (board.whiteTurn) interpEval += ((board.legalMoves.friendlyAll - board.legalMoves.friendlyQueen) - (board.legalMoves.oppAll - board.legalMoves.oppQueen)) * 9;
-            else interpEval += ((board.legalMoves.oppAll - board.legalMoves.oppQueen) - (board.legalMoves.friendlyAll - board.legalMoves.friendlyQueen)) * 9;
+            if (board.whiteTurn) eval += ((board.legalMoves.friendlyAll - board.legalMoves.friendlyQueen) - (board.legalMoves.oppAll - board.legalMoves.oppQueen)) * 9;
+            else eval += ((board.legalMoves.oppAll - board.legalMoves.oppQueen) - (board.legalMoves.friendlyAll - board.legalMoves.friendlyQueen)) * 9;
         }
 
         //pawn structure
@@ -67,17 +70,17 @@ public static class Evaluation
             bPawns[i].pop = BinaryExtras.PopCount(bPawns[i].structure);
         }
 
-        interpEval += EvaluatePawnStructure(wPawns, bPawns);
-        interpEval -= EvaluatePawnStructure(bPawns, wPawns);
+        eval += EvaluatePawnStructure(wPawns, bPawns);
+        eval -= EvaluatePawnStructure(bPawns, wPawns);
 
         //trade 
         if (remaingMaterial.white > remaingMaterial.black + 2) //ur really winning, so trading defo worth it
         {
-            interpEval += ((Piece.MaxSideMaterial - remaingMaterial.white) / Piece.MaxSideMaterial) * 300; 
+            eval += ((Piece.MaxSideMaterial - remaingMaterial.black) / Piece.MaxSideMaterial) * 300; 
         }
         else if (remaingMaterial.black > remaingMaterial.white + 2)
         {
-            interpEval += ((Piece.MaxSideMaterial - remaingMaterial.black) / Piece.MaxSideMaterial) * 300;
+            eval -= ((Piece.MaxSideMaterial - remaingMaterial.white) / Piece.MaxSideMaterial) * 300;
         }
 
         //king stuff
@@ -85,41 +88,36 @@ public static class Evaluation
         //problem is it dosnt prioritise moves that force king to centre earlier
         //if in endgame lets put king into the centre 
 
-        if (1 - interpEval > 0.7) //if actually in an endgame
+        //you cant even being to comprehend how annoying this fu***** thing has been to get working, so the scuffed soloution must be allowed
+
+        if (interpFactor < 0.4) //if actually in an endgame
         {
-            double eval = ForceKingFromCentre(board.whiteKingPos, board.blackKingPos, remaingMaterial.white, remaingMaterial.black);
-            if (board.state.wLastKingMove == board.turn - (Revi.searchDepth + 2) && remaingMaterial.black > 0)
+            double mopUpScore = ForceKingFromCentre(board.whiteKingPos, board.blackKingPos, remaingMaterial.white, remaingMaterial.black);
+            if (moves != null && moves.Count > 0 && Piece.AbsoluteType(moves[0].piece) == 1 && remaingMaterial.black > 0)
             {
-                eval *= 5;
+                mopUpScore *= remaingMaterial.white - remaingMaterial.black >= 4 ? 10 : 2;
             }
 
-            interpEval += eval;
+            eval += mopUpScore * (1 - interpFactor);
 
-            eval = ForceKingFromCentre(board.blackKingPos, board.whiteKingPos, remaingMaterial.black, remaingMaterial.white);
-            if (board.state.bLastKingMove == board.turn - (Revi.searchDepth + 2) && remaingMaterial.white > 0)
+            mopUpScore = ForceKingFromCentre(board.blackKingPos, board.whiteKingPos, remaingMaterial.black, remaingMaterial.white);
+            if (moves != null && moves.Count > 0 && Piece.AbsoluteType(moves[0].piece) == 1 && remaingMaterial.white > 0) 
             {
-                eval *= 5;
+                mopUpScore *= remaingMaterial.black - remaingMaterial.white >= 4 ? 10 : 2;
             }
 
-            interpEval -= eval;
+            eval -= mopUpScore * (1 - interpFactor);
         }
-        else
+        if (interpFactor > 0.3) 
         {
-            int kingFile = Piece.File(board.whiteKingPos);
+            eval += EvaluateKingSaftey(board.board, board.whiteKingPos, true) * interpFactor;
+            eval -= EvaluateKingSaftey(board.board, board.blackKingPos, false) * interpFactor;
 
-            if (kingFile >= 2 && kingFile <= 5) 
-            {
-                interpEval -= 100;
-            }
-
-            kingFile = Piece.File(board.blackKingPos);
-            if (kingFile >= 2 && kingFile <= 5)
-            {
-                interpEval += 100;
-            }
+            //castling encouragement
+            if (moves != null && moves.Count > 0 && (moves[0].type == 6 || moves[0].type == 7)) eval += 50 * ((board.turn - moves.Count) % 2 == 0 ? 1 : -1); 
         }
 
-        return interpEval;
+        return eval;
     }
 
     static double EvaluatePawnStructure((byte structure, byte pop)[] friendlyPawns, (byte structure, byte pop)[] oppPawns)
@@ -145,6 +143,49 @@ public static class Evaluation
                 eval += 70;
             }
         }
+
+        return eval;
+    }
+
+    static (int pos, int value)[] pawnShieldData = new (int, int)[12]
+    {
+        (8, 4), (9, 7), (10, 4), //white left
+        (13, 4), (14, 7), (15, 4), //white right
+        (48, 4), (49, 7), (50, 4), //black left
+        (53, 4), (54, 7), (55, 4) //black right
+    };
+    static double EvaluateKingSaftey(byte[] board, int kingPos, bool isWhite) 
+    {
+        double eval = 0; 
+
+        int kingFile = Piece.File(kingPos);
+        int kingRank = Piece.Rank(kingFile);
+
+        if (kingFile >= 2 && kingFile <= 5) //king not castled hidden away
+        {
+            eval -= 70;
+        }
+        if ((isWhite && kingRank >= 2) || (!isWhite && kingRank <= 5)) //king in middle of board, tf you doing bro?
+        {
+            eval -= 90;
+        }
+
+        //pawn shield data offset
+        if (kingFile >= 2 && kingFile <= 5) return eval;    
+
+        int shieldPenalty = 0;
+
+        int psdOffset = (kingFile < 2 ? 0 : 3) + (isWhite ? 0 : 6);
+        for (int i = psdOffset; i < psdOffset + 3; i++)
+        {
+            if (board[pawnShieldData[i].pos] != (isWhite ? 6 : 12))
+            {
+                shieldPenalty += pawnShieldData[i].value;
+            }
+        }
+
+        shieldPenalty *= shieldPenalty; //square to heavly discourage pushing multiple pawns
+        eval -= shieldPenalty;
 
         return eval;
     }
