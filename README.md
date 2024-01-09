@@ -1,2 +1,2 @@
 # Chess AI #
-A chess AI, im creating for my EPQ, est rating of 1200, given settings of search depth 4 and dynamic search depth enabled, though given the fact it cant make stupid blunders, the actual engine strength is probably closer to 1400!
+A chess AI, im creating for my EPQ and computer science NEA. It currently hold a est rating of 1400-1600, though this has not been fully verified and may fall outside this range, assuming settings of search depth 4, dynamic search depth enabled, and best of 1.0 weighted book moves.
