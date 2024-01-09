@@ -1,15 +1,10 @@
-using System.Collections;
-using System.Collections.Generic;
-using System.Security;
-using Unity.VisualScripting;
-using UnityEngine;
-
-//class pertaining functinos related to pieces
+/// <summary> Class pertaining help functions related to chess pieces. </summary>
 public static class Piece
 {
-    public const int MaxMaterial = 78;
+    public const int MaxMaterial = 78; //for default game of chess
     public const int MaxSideMaterial = 39;
 
+    /// <summary> Caculates remaining material on board (simplifed values). </summary>
     public static (int white, int black, int total) RemaingMaterial(Board board)
     {
         int white = 0, black = 0, total = 0;
@@ -28,21 +23,33 @@ public static class Piece
         return (white, black, total);
     }
 
-    //returns colour of piece given its type
+    /// <summary> Returns colour of the piece of given type (empty squares will return true). </summary>
     public static bool IsWhite(byte type) { return type <= 6; }
 
-    //value of piece for evaluation
-    public static int MaterialValue(byte type)
+    /// <summary> Returns simplifed material value for piece (K -> 0, Q -> 9, R -> 5, B/N -> 3, P -> 1). </summary>
+    public static int SimplifiedMaterialValue(byte type)
     {
         if (type == 0) return 0;
         if (type > 6) type -= 6;
         return materialPieceValues[type - 1];
     }
 
-    //returns the type of the piece, using type values for white pieces
+    /// <summary> Returns absolute type of piece irrespective of colour </summary>
     public static int AbsoluteType(byte type)
     {
         return type > 6 ? type - 6 : type;
+    }
+
+    /// <summary> Returns the rank (y position) of given board index. </summary>
+    public static int Rank(int index) //y
+    {
+        return rankLookup[index];
+    }
+
+    /// <summary> Returns the file (x position) of given board index. </summary>
+    public static int File(int index) //x
+    {
+        return fileLookup[index];
     }
 
     //should in theory be faster than division so often
@@ -58,11 +65,7 @@ public static class Piece
         7, 7, 7, 7, 7, 7, 7, 7,
     };
 
-    public static int Rank(int pos) //y
-    {
-        return rankLookup[pos];
-    }
-
+    //should in theory be faster than mod division so often
     static readonly int[] fileLookup =
     {
         0, 1, 2, 3, 4, 5, 6, 7,
@@ -75,22 +78,7 @@ public static class Piece
         0, 1, 2, 3, 4, 5, 6, 7,
     };
 
-    public static int File(int pos) //x
-    {
-        return fileLookup[pos];
-    }
-
-    static readonly char[] Letters = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
-    static string letters = "abcdefgh";
-    public static string AlgebraicNotation(int pos)
-    {
-        return $"{Letters[File(pos)]}{Rank(pos) + 1}";
-    }
-
-    public static int PosFromAlgebraicNotation(string notation)
-    {
-        return (int.Parse(notation[1].ToString()) - 1) * 8 + letters.IndexOf(notation[0]); 
-    }
+    // --- PIECE PRECACULATED DATA ---
 
     public static readonly int[] mgPieceValues = { 0, 1025, 477, 365, 337, 100 };
     public static readonly int[] egPieceValues = { 0, 936, 512, 297, 281, 110 };

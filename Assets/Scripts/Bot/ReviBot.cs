@@ -2,17 +2,27 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-public static class Revi
+/// <summary> Chess bot of chess engine, contains search engine. [PLANNED DEPRECATION (for 2.0 bot)] </summary>
+public static class ReviBot
 {
+    //settings
+    public enum BotMode { Off, White, Black, Both }
+    public static BotMode botMode;
+
+    public static bool useDynamicDepth = true;
+    public static int searchDepth = 4; //this number is one lower than the actual depth (4 is really searching 5 moves)
+    public static int openingBookMode = -1; //-2 off -1 on 0 1 2 3 4 are rng
+
+    static int searchDepthMaxExtend;
+
     //search details
 
     public const int TranspositionChangeCap = 100;
     public const int SearchDepthIncreaseCap = 1000; //will rerun with increased search cap if not exceded
 
-    public static int searchDepth = 4; //this number is one lower than the actual depth (4 is really searching 5 moves)
-    static int searchDepthMaxExtend;
-
     static TranspositionTable transpositions;
+
+    //opening books stuff
     public static OpeningBook openingBook;
 
     //tracked stats (useful for debug, no effect on algorithm)
@@ -22,16 +32,24 @@ public static class Revi
     static int potentialBranches;
     static Stopwatch s;
 
-    public static Move GetMove(Board board, int searchDepth, bool increaseSearchDepth) //on ocasion the transpo table still makes errors but there now rare and small enough idrc
+    /// <summary> Get move with given settings, according to bots search algorithim. </summary>
+    public static Move GetMove(Board board, int searchDepth, bool dynamicSearchDepth, int openingBookMode) //on ocasion the transpo table still makes errors but there now rare and small enough idrc
     {
         s = new Stopwatch();
 
         s.Start();
 
-        if (openingBook.TryGetBookMove(board, out string moveString))
+        if (openingBookMode == -1 && openingBook.TryGetBookMove(board, out string moveString))
         {
             UnityEngine.Debug.Log($"Book Move Found: {moveString}");
             Move m = board.GetMove(moveString);
+            GUIHandler.UpdateBotUI(m, 0, 0, 0, 0, 0, TimeSpan.Zero);
+            return m;
+        }
+        else if (openingBookMode >= 0 && openingBook.TryGetBookMoveWeighted(board, out string weightMoveString, (double)openingBookMode / 4))
+        {
+            UnityEngine.Debug.Log($"Book Move Found: {weightMoveString}");
+            Move m = board.GetMove(weightMoveString);
             GUIHandler.UpdateBotUI(m, 0, 0, 0, 0, 0, TimeSpan.Zero);
             return m;
         }
@@ -48,26 +66,40 @@ public static class Revi
 
         s.Stop();
 
-        if (s.ElapsedMilliseconds < SearchDepthIncreaseCap && increaseSearchDepth)
+        if (s.ElapsedMilliseconds < SearchDepthIncreaseCap && dynamicSearchDepth)
         {
             UnityEngine.Debug.Log($"Increasing Search Depth From {searchDepth} To {searchDepth + 1}\nTime Taken: {s.ElapsedMilliseconds}ms\nEval: {move.eval}, Index: {move.move.index}");
-            Move m = GetMove(board, searchDepth + 1, increaseSearchDepth);
+            Move m = GetMove(board, searchDepth + 1, dynamicSearchDepth, openingBookMode);
             return m;
         }
 
         UnityEngine.Debug.Log($"Moves Searched: {moveSearchCount}, Time Taken: {s.ElapsedMilliseconds}ms\nEval: {move.eval}, Index: {move.move.index}, Depth: {move.move.depth}\nBranches Prunned: {branchesPrunned}, Potential Prunnes: {potentialBranches}");
 
-        Move chosenMove = MoveOrdering.BasicOrderedMoves(board)[move.move.index];
+        Move chosenMove = MoveOrdering.OrderedMoves(board)[move.move.index];
+
+        string ms = "";
+        MoveNode node = move.move;
+        Board b = new Board(board);
+        while (true)
+        {
+            if (node.nextNode == null) break;
+            b.MakeMove(MoveOrdering.OrderedMoves(b)[node.index]);
+            ms += $"{FormattingUtillites.BoardCode(b.previousMoves.Peek().startPos)}{FormattingUtillites.BoardCode(b.previousMoves.Peek().endPos)} ";
+            node = node.nextNode;
+        }
+
+        UnityEngine.Debug.Log(ms);
 
         GUIHandler.UpdateBotUI(chosenMove, move.eval, moveSearchCount, searchDepth, potentialBranches, branchesPrunned, s.Elapsed);
 
         return chosenMove;
     }
 
+    /// <summary> 4th iteration of alpha beta search algorithim for the bot (non side to move relative). </summary>
     static (double eval, MoveNode index) AlphaBeta4(Board board, int depth, double alpha, double beta, bool whiteToPlay, List<Move> moves)
     {
         //reached end of depth or game final state been reached, so just evaluate current position (quite eval)
-        if (board.state.gameState != 0 || (depth <= 0 && !board.majorEvent) || depth <= searchDepthMaxExtend)
+        if (board.state.gameState != 0 || (depth <= 0 && !board.majorEvent && !board.isCheck) || depth <= searchDepthMaxExtend)
         {
             return (Evaluation.Evaluate(board, moves), new MoveNode(-int.MaxValue, 0, null));
         }
@@ -100,7 +132,7 @@ public static class Revi
         {
             double value = double.MinValue;
 
-            foreach (Move move in MoveOrdering.BasicOrderedMoves(board))
+            foreach (Move move in MoveOrdering.OrderedMoves(board))
             {
                 moveSearchCount++;
 
@@ -132,7 +164,7 @@ public static class Revi
         {
             double value = double.MaxValue;
 
-            foreach (Move move in MoveOrdering.BasicOrderedMoves(board))
+            foreach (Move move in MoveOrdering.OrderedMoves(board))
             {
                 moveSearchCount++;
 

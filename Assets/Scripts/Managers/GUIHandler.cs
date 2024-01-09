@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using TMPro;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -27,6 +26,7 @@ public class GUIHandler : MonoBehaviour
     public GameObject[] indicators;
 
     public static int legalMoves = 1;
+    public static bool inMenu = false;
 
     // debug options
     public static bool showAttackBitboard;
@@ -40,11 +40,11 @@ public class GUIHandler : MonoBehaviour
 
         GameObject canvas = GameObject.Find("Canvas");
 
-        popupBlocker = canvas.transform.GetChild(3);
+        popupBlocker = canvas.transform.GetChild(4);
 
-        foreach (Transform trans in canvas.transform.GetChild(0).transform) evalUI.Add(trans);
-        foreach (Transform trans in canvas.transform.GetChild(4).transform) popupUI.Add(trans);
-        foreach (Transform trans in canvas.transform.GetChild(1).transform) infoUI.Add(trans);
+        foreach (Transform trans in canvas.transform.GetChild(1).transform) evalUI.Add(trans);
+        foreach (Transform trans in canvas.transform.GetChild(5).transform) popupUI.Add(trans);
+        foreach (Transform trans in canvas.transform.GetChild(2).transform) infoUI.Add(trans);
 
         for (int i = 0; i <= 3; i++)
         {
@@ -67,7 +67,7 @@ public class GUIHandler : MonoBehaviour
 
         foreach (Move m in moves)
         {
-            Instantiate(GameHandler.board.board[m.endPos] == 0 ? Instance.indicators[0] : Instance.indicators[1], Board.GetWorldPos(m.endPos), Quaternion.identity, indicatorHolder);
+            Instantiate(GameHandler.board.board[m.endPos] == 0 ? Instance.indicators[0] : Instance.indicators[1], FormattingUtillites.GetWorldPos(m.endPos), Quaternion.identity, indicatorHolder);
         }
     }
 
@@ -82,15 +82,18 @@ public class GUIHandler : MonoBehaviour
     /// <summary> Updates constant UI elements. </summary>
     public static void UpdateUI()
     {
-        infoUI[0].GetComponent<TMP_Text>().text = $"Turn: {GameHandler.board.turn + 1}";
-        infoUI[1].GetComponent<TMP_Text>().text = $"To Play: {(GameHandler.board.whiteTurn ? "White" : "Black")}";
-        infoUI[2].GetComponent<TMP_Text>().text = $"Move Count: {legalMoves}";
-        infoUI[3].GetComponent<TMP_Text>().text = $"Castle Rights: {BinaryExtras.GetBinaryRepresentation(GameHandler.board.state.castleRights, 4)}";
-        infoUI[4].GetComponent<TMP_Text>().text = $"50 Move Counter: {GameHandler.board.state.fiftyMoveRule}";
-        infoUI[5].GetComponent<TMP_Text>().text = $"En Passant File: {GameHandler.board.state.enPassantFile}";
-        infoUI[6].GetComponent<TMP_Text>().text = $"Show Attack Bitboard: {(showAttackBitboard ? "True" : "False")}";
-        infoUI[7].GetComponent<TMP_Text>().text = $"Show Pin Bitboard: {(showPinBitboard ? "True" : "False")}";
-        infoUI[8].GetComponent<TMP_Text>().text = $"Show P Attack Bitboard: {(showPossibleAttackBitboard ? "True" : "False")}";
+        infoUI[1].GetChild(0).GetComponent<TMP_Text>().text = $"Turn: {GameHandler.board.turn + 1}";
+        infoUI[1].GetChild(1).GetComponent<TMP_Text>().text = $"To Play: {(GameHandler.board.whiteTurn ? "White" : "Black")}";
+        infoUI[1].GetChild(2).GetComponent<TMP_Text>().text = $"Legal Move Count: {legalMoves}";
+
+        infoUI[2].GetChild(0).GetComponent<TMP_Text>().text = $"Castle Rights: {BinaryUtilities.GetBinaryRepresentation(GameHandler.board.state.castleRights, 4)}";
+        infoUI[2].GetChild(1).GetComponent<TMP_Text>().text = $"50 Move Counter: {GameHandler.board.state.fiftyMoveRule}";
+        infoUI[2].GetChild(2).GetComponent<TMP_Text>().text = $"En Passant File: {GameHandler.board.state.enPassantFile}";
+        infoUI[2].GetChild(3).GetComponent<TMP_Text>().text = $"In Check: {GameHandler.board.isCheck}";
+
+        infoUI[3].GetChild(0).GetComponent<TMP_Text>().text = $"Show Attack Bitboard: {(showAttackBitboard ? "True" : "False")}";
+        infoUI[3].GetChild(1).GetComponent<TMP_Text>().text = $"Show Pin Bitboard: {(showPinBitboard ? "True" : "False")}";
+        infoUI[3].GetChild(2).GetComponent<TMP_Text>().text = $"Show P Attack Bitboard: {(showPossibleAttackBitboard ? "True" : "False")}";
 
         UpdatePieceUI();
     }
@@ -98,39 +101,47 @@ public class GUIHandler : MonoBehaviour
     /// <summary> Updates UI elements about BOT. </summary>
     public static void UpdateBotUI(Move move, double eval, int movesSearched, int searchDepth, int transpositions, int transpositionsUsed, TimeSpan timeTaken)
     {
-        evalUI[11].GetChild(2).GetComponent<Image>().fillAmount = (Mathf.Clamp((float)eval, -1200, 1200) + 1200) / 2400;
-        evalUI[11].GetChild(3).GetComponent<TMP_Text>().text = $"{(eval >= 0 ? "+" : "")}{((double)eval / 100).ToString("0.00")}";
-        evalUI[1].GetComponent<TMP_Text>().text = $"Bot Mode: {GameHandler.botMode}";
-        evalUI[2].GetComponent<TMP_Text>().text = $"Default Bot Depth: {Revi.searchDepth} ({Revi.searchDepth + 1})";
-        evalUI[3].GetComponent<TMP_Text>().text = $"Used Bot Depth: {searchDepth} ({searchDepth + 1})";
-        evalUI[4].GetComponent<TMP_Text>().text = $"Bot Capture Depth: {searchDepth + (searchDepth % 2 == 0 ? 3 : 2)} ({searchDepth + ((searchDepth % 2 == 0 ? 4 : 3))})";
-        evalUI[5].GetComponent<TMP_Text>().text = $"Dynamic Bot Depth: {GameHandler.useDynamicDepth}"; //cant disable yet lol
-        evalUI[6].GetComponent<TMP_Text>().text = $"Moves Searched: {movesSearched}";
-//        evalUI[7].GetComponent<TMP_Text>().text = $"Transpos Found: {transpositions}";
-//        evalUI[8].GetComponent<TMP_Text>().text = $"Transpos Used: {transpositionsUsed}";
-        evalUI[7].GetComponent<TMP_Text>().text = $"Best Move: {Piece.AlgebraicNotation(move.startPos)} -> {Piece.AlgebraicNotation(move.endPos)}";
-        evalUI[8].GetComponent<TMP_Text>().text = $"Best Move Eval: {Math.Round(eval, 2)}";
-        evalUI[9].GetComponent<TMP_Text>().text = $"Time Taken: {Math.Round(timeTaken.TotalSeconds, 2)}s";
-        evalUI[10].GetComponent<TMP_Text>().text = $"Time Per Move: {Math.Round(timeTaken.TotalMilliseconds / (movesSearched + 1), 3)}ms";
+        evalUI[4].GetChild(2).GetComponent<Image>().fillAmount = (Mathf.Clamp((float)eval, -1200, 1200) + 1200) / 2400;
+        evalUI[4].GetChild(3).GetComponent<TMP_Text>().text = $"{(eval >= 0 ? "+" : "")}{((double)eval / 100).ToString("0.00")}";
+
+        evalUI[1].GetChild(0).GetComponent<TMP_Text>().text = $"Bot Mode: {ReviBot.botMode}";
+        evalUI[1].GetChild(1).GetComponent<TMP_Text>().text = $"Opening Book Mode: {(ReviBot.openingBookMode == -2 ? "Off" : ReviBot.openingBookMode == -1 ? "Best" : $"{(double)ReviBot.openingBookMode / 4}")}";
+        evalUI[1].GetChild(2).GetComponent<TMP_Text>().text = $"Dynamic Depth: {ReviBot.useDynamicDepth}";
+        evalUI[1].GetChild(3).GetComponent<TMP_Text>().text = $"Inital Depth: {ReviBot.searchDepth} ({ReviBot.searchDepth + 1})";
+
+        evalUI[2].GetChild(0).GetComponent<TMP_Text>().text = $"Used Depth: {searchDepth} ({searchDepth + 1})";
+        evalUI[2].GetChild(1).GetComponent<TMP_Text>().text = $"Used Extension Depth: {searchDepth + (searchDepth % 2 == 0 ? 3 : 2)} ({searchDepth + ((searchDepth % 2 == 0 ? 4 : 3))})";
+        evalUI[2].GetChild(2).GetComponent<TMP_Text>().text = $"Time Taken: {Math.Round(timeTaken.TotalSeconds, 2)}s";
+        evalUI[2].GetChild(3).GetComponent<TMP_Text>().text = $"Time Per Move: {Math.Round(timeTaken.TotalMilliseconds / (movesSearched + 1), 3)}ms";
+
+        evalUI[3].GetChild(0).GetComponent<TMP_Text>().text = $"Moves Searched: {movesSearched}";
+        evalUI[3].GetChild(1).GetComponent<TMP_Text>().text = $"Best Move: {FormattingUtillites.BoardCode(move.startPos)} -> {FormattingUtillites.BoardCode(move.endPos)}";
+        evalUI[3].GetChild(2).GetComponent<TMP_Text>().text = $"Best Move Eval: {Math.Round(eval, 2)}";
+        evalUI[3].GetChild(3).GetComponent<TMP_Text>().text = $"Transpos Found: {transpositions}";
+        evalUI[3].GetChild(4).GetComponent<TMP_Text>().text = $"Transpos Used: {transpositionsUsed}";
     }
 
     /// <summary> Updates UI elements about BOT To Unknown Values. </summary>
     public static void UpdateBotUINull()
     {
-        evalUI[11].GetChild(2).GetComponent<Image>().fillAmount = 0.5f;
-        evalUI[11].GetChild(3).GetComponent<TMP_Text>().text = "???";
-        evalUI[1].GetComponent<TMP_Text>().text = $"Bot Mode: {GameHandler.botMode}";
-        evalUI[2].GetComponent<TMP_Text>().text = $"Default Bot Depth: {Revi.searchDepth} ({Revi.searchDepth + 1})";
-        evalUI[3].GetComponent<TMP_Text>().text = $"Used Bot Depth: {Revi.searchDepth} ({Revi.searchDepth + 1})";
-        evalUI[4].GetComponent<TMP_Text>().text = $"Bot Capture Depth: {Revi.searchDepth + (Revi.searchDepth % 2 == 0 ? 3 : 2)} ({Revi.searchDepth + ((Revi.searchDepth % 2 == 0 ? 4 : 3))})";
-        evalUI[5].GetComponent<TMP_Text>().text = $"Dynamic Bot Depth: {GameHandler.useDynamicDepth}"; //cant disable yet lol
-        evalUI[6].GetComponent<TMP_Text>().text = $"Moves Searched: 0";
-//        evalUI[7].GetComponent<TMP_Text>().text = $"Transpos Found: 0";
-//        evalUI[8].GetComponent<TMP_Text>().text = $"Transpos Used: 0";
-        evalUI[7].GetComponent<TMP_Text>().text = $"Best Move: None";
-        evalUI[8].GetComponent<TMP_Text>().text = $"Best Move Eval: ???";
-        evalUI[9].GetComponent<TMP_Text>().text = $"Time Taken: 0s";
-        evalUI[10].GetComponent<TMP_Text>().text = $"Time Per Move: 0ms";
+        evalUI[4].GetChild(2).GetComponent<Image>().fillAmount = 0.5f;
+        evalUI[4].GetChild(3).GetComponent<TMP_Text>().text = "???";
+
+        evalUI[1].GetChild(0).GetComponent<TMP_Text>().text = $"Bot Mode: {ReviBot.botMode}";
+        evalUI[1].GetChild(1).GetComponent<TMP_Text>().text = $"Opening Book Mode: {(ReviBot.openingBookMode == -2 ? "Off" : ReviBot.openingBookMode == -1 ? "Best" : $"{(double)ReviBot.openingBookMode / 4}")}";
+        evalUI[1].GetChild(2).GetComponent<TMP_Text>().text = $"Dynamic Depth: {ReviBot.useDynamicDepth}";
+        evalUI[1].GetChild(3).GetComponent<TMP_Text>().text = $"Inital Depth: {ReviBot.searchDepth} ({ReviBot.searchDepth + 1})";
+
+        evalUI[2].GetChild(0).GetComponent<TMP_Text>().text = $"Used Depth: {ReviBot.searchDepth} ({ReviBot.searchDepth + 1})";
+        evalUI[2].GetChild(1).GetComponent<TMP_Text>().text = $"Used Extension Depth: {ReviBot.searchDepth + (ReviBot.searchDepth % 2 == 0 ? 3 : 2)} ({ReviBot.searchDepth + ((ReviBot.searchDepth % 2 == 0 ? 4 : 3))})";
+        evalUI[2].GetChild(2).GetComponent<TMP_Text>().text = $"Time Taken: 0s";
+        evalUI[2].GetChild(3).GetComponent<TMP_Text>().text = $"Time Per Move: 0ms";
+
+        evalUI[3].GetChild(0).GetComponent<TMP_Text>().text = $"Moves Searched: 0";
+        evalUI[3].GetChild(1).GetComponent<TMP_Text>().text = $"Best Move: None";
+        evalUI[3].GetChild(2).GetComponent<TMP_Text>().text = $"Best Move Eval: None";
+        evalUI[3].GetChild(3).GetComponent<TMP_Text>().text = $"Transpos Found: 0";
+        evalUI[3].GetChild(4).GetComponent<TMP_Text>().text = $"Transpos Used: 0";
     }
 
     /// <summary> Updates piece UI elements. </summary>
@@ -149,7 +160,7 @@ public class GUIHandler : MonoBehaviour
                 g.AddComponent<SpriteRenderer>().sprite = Instance.pieceSprites[GameHandler.board.board[i] - 1];
                 g.GetComponent<SpriteRenderer>().sortingOrder = 99;
                 g.transform.SetParent(pieceObjHolder);
-                g.transform.position = Board.GetWorldPos((byte)i);
+                g.transform.position = FormattingUtillites.GetWorldPos((byte)i);
                 g.transform.localScale = new Vector3(0.8f, 0.8f, 1);
             }
 
@@ -243,10 +254,11 @@ public class GUIHandler : MonoBehaviour
     /// <summary> Toggles end game ui. </summary>
     public static void ToggleEndGameUI(int state)
     {
+        inMenu = state == 0 ? true : false;
         popupBlocker.gameObject.SetActive(state == 0 ? true : false);
         popupUI[1].gameObject.SetActive(state == 0 ? true : false);
         popupUI[1].GetChild(1).GetComponent<TMP_Text>().text = endGameMessages[GameHandler.board.state.gameState];
-        if (state == 1) GameHandler.Instance.SetUpChessBoard(Board.usedFen);
+        if (state == 1) GameHandler.SetUpChessBoard(Board.usedFen);
     }
 
     /// <summary> Toggles promotion ui, non 0 state updates selected promotion. </summary>
@@ -254,6 +266,7 @@ public class GUIHandler : MonoBehaviour
     {
         popupBlocker.gameObject.SetActive(state == 0 ? true : false);
         popupUI[0].gameObject.SetActive(state == 0 ? true : false);
+        inMenu = state == 0 ? true : false;
 
         if (state != 0) GameHandler.selectedPromotion = (byte)state;
         else
@@ -266,11 +279,41 @@ public class GUIHandler : MonoBehaviour
     }
 
     /// <summary> updates bot popup ui. </summary>
+    public static void ToggleFenSettingsPopup(bool enabled)
+    {
+        popupBlocker.gameObject.SetActive(enabled);
+        inMenu = enabled;
+
+        popupUI[3].gameObject.SetActive(enabled);
+        popupUI[3].GetChild(2).GetChild(1).GetComponent<TMP_Text>().text = FormattingUtillites.BoardToFenString(GameHandler.board);
+    }
+
+    /// <summary> Copy current game fen to clipboard. </summary>
+    public static void CopyFenToClipboard()
+    {
+        GUIUtility.systemCopyBuffer = FormattingUtillites.BoardToFenString(GameHandler.board);
+    }
+
+    /// <summary> Copy current game pgn to clipboard. </summary>
+    public static void CopyPgnToClipboard()
+    {
+        GUIUtility.systemCopyBuffer = FormattingUtillites.BoardToPgnString(GameHandler.board);
+    }
+
+    /// <summary> Load given fen position (in game settings). </summary>
+    public static void LoadFenPosition()
+    {
+        string loadedFen = popupUI[3].GetChild(5).GetComponent<TMP_InputField>().text;
+        if (FormattingUtillites.FenValid(loadedFen)) GameHandler.SetUpChessBoard(loadedFen);
+    }
+
+    /// <summary> Updates bot popup ui. </summary>
     public static void UpdateBotSettingsPopup(bool enabled)
     {
         Instance.StartCoroutine(IUpdateBotSettingsPopup(enabled));
     }
 
+        /// <summary> Updates bot popup ui (IEnumator gives time for popup to go). </summary>
     static IEnumerator IUpdateBotSettingsPopup(bool enabled)
     {
         bool oldActive = popupUI[2].gameObject.activeSelf;
@@ -278,9 +321,10 @@ public class GUIHandler : MonoBehaviour
         popupBlocker.gameObject.SetActive(enabled);
         popupUI[2].gameObject.SetActive(enabled);
 
-        popupUI[2].GetChild(4).GetChild(1).GetComponent<TMP_Text>().text = $"{GameHandler.botMode}";
-        popupUI[2].GetChild(3).GetChild(1).GetComponent<TMP_Text>().text = $"{GameHandler.useDynamicDepth}";
-        popupUI[2].GetChild(2).GetChild(1).GetComponent<TMP_Text>().text = $"{Revi.searchDepth}";
+        popupUI[2].GetChild(5).GetChild(1).GetComponent<TMP_Text>().text = $"{(ReviBot.openingBookMode == -2 ? "Off" : ReviBot.openingBookMode == -1 ? "Best" : $"{(double)ReviBot.openingBookMode / 4}")}";
+        popupUI[2].GetChild(4).GetChild(1).GetComponent<TMP_Text>().text = $"{ReviBot.botMode}";
+        popupUI[2].GetChild(3).GetChild(1).GetComponent<TMP_Text>().text = $"{ReviBot.useDynamicDepth}";
+        popupUI[2].GetChild(2).GetChild(1).GetComponent<TMP_Text>().text = $"{ReviBot.searchDepth}";
 
         UpdateBotUINull();
 
@@ -288,8 +332,8 @@ public class GUIHandler : MonoBehaviour
 
         if (enabled != oldActive)
         {
-            if (!enabled) GameHandler.inMenu = false;
-            else GameHandler.inMenu = true;
+            if (!enabled) inMenu = false;
+            else inMenu = true;
         }
     }
 }

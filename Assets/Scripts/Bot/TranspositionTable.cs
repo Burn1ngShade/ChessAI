@@ -1,6 +1,4 @@
-using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel.Design;
 using UnityEngine;
 
 /// <summary> Class storing chess positions, and their data </summary>
@@ -17,6 +15,7 @@ public class TranspositionTable
         Clear();
     }
 
+    /// <summary> Clear all data from transposition table. </summary>
     public void Clear()
     {
         positions = new Dictionary<ulong, (double eval, MoveNode index, double alphaBeta)>[depth + 1];
@@ -27,6 +26,7 @@ public class TranspositionTable
         }
     }
 
+    /// <summary> Checks if table contains given move, at given depth. </summary>
     public bool Contains(ulong zobristKey, int depth)
     {
         if (depth > this.depth) Debug.Log(depth);
@@ -35,16 +35,19 @@ public class TranspositionTable
         return false;
     }
 
+    /// <summary> Add given move data, at given depth. </summary>
     public void Add(ulong zobristKey, (double eval, MoveNode index, double alphaBeta) value, int depth)
     {
         positions[depth].Add(zobristKey, value);
     }
 
+    /// <summary> Remove given move data, at given depth. </summary>
     public void Remove(ulong zobristKey, int depth)
     {
         positions[depth].Remove(zobristKey);
     }
 
+    /// <summary> Get move at given position and depth. </summary>
     public (double eval, MoveNode index, double alphaBeta) Get(ulong zobristKey, int depth)
     {
         return positions[depth][zobristKey];

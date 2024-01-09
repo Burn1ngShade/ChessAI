@@ -45,11 +45,13 @@ public class Move
         this.type = type;
     }
 
+    /// <summary> Hashcode for moves, unique for every move in a position (excluding promotion). </summary>
     public override int GetHashCode()
     {
-        return startPos << 8 | endPos; //should be unique for every move? (per position)
+        return startPos << 8 | endPos;
     }
 
+    /// <summary> ToString, in format startpos : endpos : types. </summary>
     public override string ToString()
     {
         return $"{startPos} : {endPos} : {type}";

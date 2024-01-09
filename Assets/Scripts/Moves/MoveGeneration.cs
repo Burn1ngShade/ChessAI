@@ -1,15 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Resources;
-using Unity.VisualScripting;
-using UnityEngine;
 
+/// <summary> Class responsbile for chess move generation . </summary>
 public static class MoveGeneration
 {
     static int checkState = 0;
     static int checker = 0;
 
+    /// <summary> Generate moves for given board. </summary>
     public static List<Move> GenerateMoves(Board b)
     {
         List<Move> newMoves = new List<Move>();
@@ -134,7 +132,7 @@ public static class MoveGeneration
                 }
             }
 
-            if (Piece.MaterialValue(b.board[m.endPos]) >= 3) b.majorEvent = true;
+            if (Piece.SimplifiedMaterialValue(b.board[m.endPos]) >= 3) b.majorEvent = true;
             else if (m.type >= 2 && m.type <= 5) b.majorEvent = true;
 
             validMoves.Add(newMoves[i]);
@@ -149,6 +147,7 @@ public static class MoveGeneration
         return validMoves;
     }
 
+    /// <summary> Resets all variables related to move generation. </summary>
     static void ResetMoveGen(Board b)
     {
         b.wPieceBitboard = 0;
@@ -174,6 +173,7 @@ public static class MoveGeneration
         b.isCheck = false;
     }
 
+    /// <summary> Adds move to list of pseudo-legal moves. </summary>
     static void AddMove(Board b, ref List<Move> moves, Move move)
     {
         if (b.friendlyKingPos == move.endPos && move.type <= 2 && Piece.IsWhite(b.board[move.startPos]) != b.whiteTurn)
@@ -184,6 +184,7 @@ public static class MoveGeneration
         moves.Add(move);
     }
 
+    /// <summary> Generates attack and certain check bit boards for position. </summary>
     static void GenerateAttackBitboards(Board b, List<Move> moves)
     {
         foreach (Move move in moves)
@@ -312,6 +313,7 @@ public static class MoveGeneration
         }
     }
 
+    /// <summary> Generate pawn moves for pawn at given index. </summary>
     static void GeneratePawnMoves(Board b, byte index, ref List<Move> moves)
     {
         int isWhite = Piece.IsWhite(b.board[index]) ? 1 : -1;
@@ -347,8 +349,8 @@ public static class MoveGeneration
 
             if (b.whiteTurn != (isWhite == 1) && ((b.kingBlockerBitboard & (1UL << newIndex)) == 0)) b.kingBlockerBitboard += 1UL << newIndex;
 
-            if (isWhite == 1 && !BinaryExtras.BitboardContains(b.wPossbileAttackBitboard, newIndex)) b.wPossbileAttackBitboard += 1UL << newIndex;
-            else if (isWhite != 1 && !BinaryExtras.BitboardContains(b.bPossbileAttackBitboard, newIndex)) b.bPossbileAttackBitboard += 1UL << newIndex;
+            if (isWhite == 1 && !BinaryUtilities.BitboardContains(b.wPossbileAttackBitboard, newIndex)) b.wPossbileAttackBitboard += 1UL << newIndex;
+            else if (isWhite != 1 && !BinaryUtilities.BitboardContains(b.bPossbileAttackBitboard, newIndex)) b.bPossbileAttackBitboard += 1UL << newIndex;
 
             if (b.board[newIndex] != 0 && Piece.IsWhite(b.board[newIndex]) != Piece.IsWhite(b.board[index]))
             {
@@ -374,6 +376,7 @@ public static class MoveGeneration
     static int[] knightOffsets = { -10, 6, 15, 17, 10, -6, -17, -15 };
     static int[] knightXOffsets = { -2, -2, -1, 1, 2, 2, -1, 1 };
 
+    /// <summary> Generate knight moves for knight at given index. </summary>
     static void GenerateKnightMoves(Board b, byte index, ref List<Move> moves)
     {
         for (int i = 0; i < knightOffsets.Length; i++)
@@ -383,8 +386,8 @@ public static class MoveGeneration
 
             if (b.whiteTurn != Piece.IsWhite(b.board[index]) && ((b.kingBlockerBitboard & (1UL << newIndex)) == 0)) b.kingBlockerBitboard += 1UL << newIndex;
 
-            if (Piece.IsWhite(b.board[index]) && !BinaryExtras.BitboardContains(b.wPossbileAttackBitboard, newIndex)) b.wPossbileAttackBitboard += 1UL << newIndex;
-            else if (!Piece.IsWhite(b.board[index]) && !BinaryExtras.BitboardContains(b.bPossbileAttackBitboard, newIndex)) b.bPossbileAttackBitboard += 1UL << newIndex;
+            if (Piece.IsWhite(b.board[index]) && !BinaryUtilities.BitboardContains(b.wPossbileAttackBitboard, newIndex)) b.wPossbileAttackBitboard += 1UL << newIndex;
+            else if (!Piece.IsWhite(b.board[index]) && !BinaryUtilities.BitboardContains(b.bPossbileAttackBitboard, newIndex)) b.bPossbileAttackBitboard += 1UL << newIndex;
 
             if (b.board[newIndex] == 0 || (Piece.IsWhite(b.board[newIndex]) != Piece.IsWhite(b.board[index])))
             {
@@ -393,6 +396,7 @@ public static class MoveGeneration
         }
     }
 
+    /// <summary> Generate line moves for rook, bishop or queen at given index. </summary>
     static void GenerateLineMoves(Board b, byte index, byte maxLength, int[] indexShifts, ref List<Move> moves)
     {
         for (int j = 0; j < indexShifts.Length; j++) //each direction
@@ -408,8 +412,8 @@ public static class MoveGeneration
 
                 if (b.whiteTurn != Piece.IsWhite(b.board[index]) && ((b.kingBlockerBitboard & (1UL << newIndex)) == 0)) b.kingBlockerBitboard += 1UL << newIndex;
 
-                if (Piece.IsWhite(b.board[index]) && !BinaryExtras.BitboardContains(b.wPossbileAttackBitboard, newIndex)) b.wPossbileAttackBitboard += 1UL << newIndex;
-                else if (!Piece.IsWhite(b.board[index]) && !BinaryExtras.BitboardContains(b.bPossbileAttackBitboard, newIndex)) b.bPossbileAttackBitboard += 1UL << newIndex;
+                if (Piece.IsWhite(b.board[index]) && !BinaryUtilities.BitboardContains(b.wPossbileAttackBitboard, newIndex)) b.wPossbileAttackBitboard += 1UL << newIndex;
+                else if (!Piece.IsWhite(b.board[index]) && !BinaryUtilities.BitboardContains(b.bPossbileAttackBitboard, newIndex)) b.bPossbileAttackBitboard += 1UL << newIndex;
 
                 if (b.board[newIndex] != 0)
                 {
@@ -422,6 +426,7 @@ public static class MoveGeneration
         }
     }
 
+    /// <summary> Generate king moves for king at given index. </summary>
     static void GenerateKingMoves(Board b, byte index, ref List<Move> refMoves)
     {
         GenerateLineMoves(b, index, 1, new int[] { -1, 8, 1, -8 }, ref refMoves);

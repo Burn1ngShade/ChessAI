@@ -1,17 +1,15 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Net;
-using UnityEngine;
 
+/// <summary> Class responsible for holding opening book moves for chess bot. </summary>
 public class OpeningBook
 {
     readonly Dictionary<string, BookMove[]> movesByPosition;
-    readonly System.Random rng;
+    readonly Random rng;
 
     public OpeningBook(string file)
     {
-        rng = new System.Random();
+        rng = new Random();
         Span<string> entries = file.Trim(new char[] { ' ', '\n' }).Split("pos").AsSpan(1);
         movesByPosition = new Dictionary<string, BookMove[]>(entries.Length);
 
@@ -33,13 +31,11 @@ public class OpeningBook
         }
     }
 
-    // WeightPow is a value between 0 and 1.
-    // 0 means all moves are picked with equal probablity, 1 means moves are weighted by num times played.
+    /// <summary> Trys to select a move from current postion, picking randomly, according to number of times played and weight. </summary>
     public bool TryGetBookMoveWeighted(Board board, out string moveString, double weightPow = 0.5)
     {
-        string positionFen = ChessExtras.BoardToFenString(board);
         weightPow = Math.Clamp(weightPow, 0, 1);
-        if (movesByPosition.TryGetValue(ChessExtras.SimplifiedFenString(positionFen), out BookMove[] moves))
+        if (movesByPosition.TryGetValue(FormattingUtillites.SimplifiedFenString(FormattingUtillites.BoardToFenString(board)), out BookMove[] moves))
         {
             int totalPlayCount = 0;
             foreach (BookMove move in moves)
@@ -81,9 +77,10 @@ public class OpeningBook
         int WeightedPlayCount(int playCount) => (int)Math.Ceiling(Math.Pow(playCount, weightPow));
     }
 
+    /// <summary> Trys to find book move in position, always play most played book move. </summary>
     public bool TryGetBookMove(Board board, out string moveString)
     {
-        string positionFen = ChessExtras.SimplifiedFenString(ChessExtras.BoardToFenString(board));
+        string positionFen = FormattingUtillites.SimplifiedFenString(FormattingUtillites.BoardToFenString(board));
 
         if (movesByPosition.TryGetValue(positionFen, out BookMove[] moves))
         {
@@ -107,7 +104,7 @@ public class OpeningBook
         return false;
     }
 
-
+    /// <summary> Struct for a book move data. </summary>
     public readonly struct BookMove
     {
         public readonly string moveString;
