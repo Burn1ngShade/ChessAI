@@ -50,6 +50,9 @@ public class Board
     public ulong wPossbileAttackBitboard = 0;
     public ulong bPossbileAttackBitboard = 0;
 
+    public ulong wPawnAttack = 0;
+    public ulong bPawnAttack = 0;
+
     public List<Move> possibleMoves = new List<Move>(); //current moves in position
     public Stack<Move> previousMoves = new Stack<Move>(); //past moves in game
 
@@ -83,6 +86,9 @@ public class Board
 
         wPossbileAttackBitboard = b.wPossbileAttackBitboard;
         bPossbileAttackBitboard = b.bPossbileAttackBitboard;
+
+        wPawnAttack = b.wPawnAttack;
+        bPawnAttack = b.bPawnAttack;
 
         turn = b.turn;
         state = new BoardState(b.state);

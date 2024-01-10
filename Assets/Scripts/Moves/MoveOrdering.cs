@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -13,6 +14,9 @@ public static class MoveOrdering
     /// <summary> Advanced move ordering algorithim. </summary>
     public static List<Move> OrderedMoves(Board board)
     {
+        (double white, double black, double total) remaingMaterial = Piece.RemaingMaterial(board); //material left on board (using rudmentray values)
+        double interpFactor = Math.Clamp(remaingMaterial.total / Piece.MaxMaterial, 0, 1); //interpolate between midgame and endgame tables
+
         (Move move, int score)[] m = new (Move, int)[board.possibleMoves.Count];
 
         for (int i = 0; i < board.possibleMoves.Count; i++)
@@ -26,9 +30,8 @@ public static class MoveOrdering
 
             bool recapturePossible = BinaryUtilities.BitboardContains(board.whiteTurn ? board.bPossbileAttackBitboard : board.wPossbileAttackBitboard, board.possibleMoves[i].endPos);
 
-            if (board.board[move.endPos] != 0 && Piece.AbsoluteType(board.board[move.endPos]) != 6) //if its a capture
+            if (board.board[move.endPos] != 0) //if its a capture
             {
-                score += 10000;
                 int captureMaterialDelta = Piece.SimplifiedMaterialValue(captureType) - Piece.SimplifiedMaterialValue(type);
                 if (recapturePossible)
                 {
@@ -40,23 +43,37 @@ public static class MoveOrdering
                     score += winningCaptureBias + captureMaterialDelta;
                 }
             }
+
+            if (Piece.AbsoluteType(type) == 6)
+            {
+                if (move.type >= 2 && move.type <= 5) //promotion
+                {
+                    score += promotionBias;
+                }
+            }
+            else if (Piece.AbsoluteType(type) == 1) { }
             else //not a capture
             {
+                if (Piece.IsPiece(type))
+                {
+                    score += (int)Math.Floor((Piece.mgPieceTables[Piece.AbsoluteType(type) - 1][isWhite ? BinaryUtilities.FlipBitboardIndex(i) : i] * interpFactor +
+                    Piece.egPieceTables[Piece.AbsoluteType(type) - 1][isWhite ? BinaryUtilities.FlipBitboardIndex(i) : i]) * 0.7);
+                }
+                else
+                {
+                    UnityEngine.Debug.Log("[ERROR INVALID MOVE PIECE?!?!?]" + move.ToString() + " " + board.board[move.startPos]);
+                }
+
                 //add something taking account of piece tables
 
-                if (BinaryUtilities.BitboardContains(isWhite ? board.bAttackBitboard : board.wAttackBitboard, move.endPos)) //pawn can capture
-                {
-                    score -= 25;
-                }
-                else if (BinaryUtilities.BitboardContains(isWhite ? board.bPossbileAttackBitboard : board.wPossbileAttackBitboard, move.endPos)) //non pawn can capture
+                if (BinaryUtilities.BitboardContains(isWhite ? board.bPawnAttack : board.wPawnAttack, move.endPos))
                 {
                     score -= 50;
                 }
-            }
-
-            if (move.type >= 2 && move.type <= 5) //promotion
-            {
-                score += promotionBias;
+                else if (BinaryUtilities.BitboardContains(isWhite ? board.bAttackBitboard : board.wAttackBitboard, move.endPos)) //non can capture
+                {
+                    score -= 25;
+                }
             }
 
             m[i] = (move, score);
@@ -64,28 +81,5 @@ public static class MoveOrdering
 
         m = m.OrderByDescending(x => x.score).ToArray();
         return m.Select(m => m.move).ToList();
-    }
-
-    /// <summary> Simplistic move ordering, similar performance in current bot but should fall behind with implementation of revi bot 2. </summary>
-    public static List<Move> BasicOrderedMoves(Board board)
-    {
-        List<Move> m = new List<Move>();
-
-        int maxValue = 1;
-
-        int value;
-        for (int i = 0; i < board.possibleMoves.Count; i++)
-        {
-            value = Piece.SimplifiedMaterialValue(board.board[board.possibleMoves[i].endPos]);
-
-            if (maxValue <= value)
-            {
-                maxValue = value;
-                m.Insert(0, board.possibleMoves[i]);
-            }
-            m.Add(board.possibleMoves[i]);
-        }
-
-        return m;
     }
 }

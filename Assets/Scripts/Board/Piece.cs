@@ -26,6 +26,9 @@ public static class Piece
     /// <summary> Returns colour of the piece of given type (empty squares will return true). </summary>
     public static bool IsWhite(byte type) { return type <= 6; }
 
+    /// <summary> Returns if type is a piece or pawn. </summary>
+    public static bool IsPiece(byte type) { return type > 0 && type <= 12; }
+
     /// <summary> Returns simplifed material value for piece (K -> 0, Q -> 9, R -> 5, B/N -> 3, P -> 1). </summary>
     public static int SimplifiedMaterialValue(byte type)
     {

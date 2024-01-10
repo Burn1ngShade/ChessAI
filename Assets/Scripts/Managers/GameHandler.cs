@@ -24,9 +24,9 @@ public class GameHandler : MonoBehaviour
         (KeyCode.Alpha2, new Action(() => { ReviBot.botMode = (ReviBot.BotMode)1; GUIHandler.UpdateBotUINull(); })),
         (KeyCode.Alpha3, new Action(() => { ReviBot.botMode = (ReviBot.BotMode)2; GUIHandler.UpdateBotUINull(); })),
         (KeyCode.Alpha4, new Action(() => { ReviBot.botMode = (ReviBot.BotMode)3; GUIHandler.UpdateBotUINull(); })),
-        (KeyCode.F, new Action(() => { GUIHandler.showAttackBitboard = !GUIHandler.showAttackBitboard; GUIHandler.UpdateUI(); if (GUIHandler.showAttackBitboard)   GUIHandler.UpdateBoardHighlights(1, GUIHandler.ClearColourHighlights());} )),
-        (KeyCode.G, new Action(() => { GUIHandler.showPinBitboard = !GUIHandler.showPinBitboard; GUIHandler.UpdateUI(); if (GUIHandler.showPinBitboard)   GUIHandler.UpdateBoardHighlights(2, GUIHandler.ClearColourHighlights());} )),
-        (KeyCode.H, new Action(() => { GUIHandler.showPossibleAttackBitboard = !GUIHandler.showPossibleAttackBitboard; GUIHandler.UpdateUI(); if (GUIHandler.showPossibleAttackBitboard)   GUIHandler.UpdateBoardHighlights(3, GUIHandler.ClearColourHighlights());} )),
+        (KeyCode.F, new Action(() => { GUIHandler.showAttackBitboard = !GUIHandler.showAttackBitboard; GUIHandler.UpdateUI(); if (!GUIHandler.showAttackBitboard)   GUIHandler.UpdateBoardHighlights(1, GUIHandler.ClearColourHighlights());} )),
+        (KeyCode.G, new Action(() => { GUIHandler.showPinBitboard = !GUIHandler.showPinBitboard; GUIHandler.UpdateUI(); if (!GUIHandler.showPinBitboard)   GUIHandler.UpdateBoardHighlights(2, GUIHandler.ClearColourHighlights());} )),
+        (KeyCode.H, new Action(() => { GUIHandler.showPossibleAttackBitboard = !GUIHandler.showPossibleAttackBitboard; GUIHandler.UpdateUI(); if (!GUIHandler.showPossibleAttackBitboard) GUIHandler.UpdateBoardHighlights(3, GUIHandler.ClearColourHighlights());} )),
         (KeyCode.J, new Action(() => {ReviBot.searchDepth = Math.Clamp(ReviBot.searchDepth - 1, 2, 8); GUIHandler.UpdateBotUINull();})),
         (KeyCode.K, new Action(() => {ReviBot.searchDepth = Math.Clamp(ReviBot.searchDepth + 1, 2, 8); GUIHandler.UpdateBotUINull();})),
         (KeyCode.L, new Action(() => {ReviBot.useDynamicDepth = !ReviBot.useDynamicDepth; GUIHandler.UpdateBotUINull();})),
@@ -54,8 +54,10 @@ public class GameHandler : MonoBehaviour
     {
         if (GUIHandler.inMenu) return;
 
-        foreach ((KeyCode hotkey, Action action) in hotkeys){
-            if (Input.GetKeyDown(hotkey)){
+        foreach ((KeyCode hotkey, Action action) in hotkeys)
+        {
+            if (Input.GetKeyDown(hotkey))
+            {
                 action.Invoke();
             }
         }

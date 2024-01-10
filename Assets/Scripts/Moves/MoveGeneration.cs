@@ -165,6 +165,9 @@ public static class MoveGeneration
         b.wPossbileAttackBitboard = 0;
         b.bPossbileAttackBitboard = 0;
 
+        b.wPawnAttack = 0;
+        b.bPawnAttack = 0;
+
         checkState = 0;
         checker = 0;
 
@@ -348,6 +351,9 @@ public static class MoveGeneration
             if (Math.Abs(newIndex % 8 - index % 8) == 7) continue;
 
             if (b.whiteTurn != (isWhite == 1) && ((b.kingBlockerBitboard & (1UL << newIndex)) == 0)) b.kingBlockerBitboard += 1UL << newIndex;
+
+            if (isWhite == 1 && !BinaryUtilities.BitboardContains(b.wPawnAttack, newIndex)) b.wPawnAttack += 1UL << newIndex;
+            else if (isWhite != 1 && !BinaryUtilities.BitboardContains(b.bPawnAttack, newIndex)) b.bPawnAttack += 1UL << newIndex;
 
             if (isWhite == 1 && !BinaryUtilities.BitboardContains(b.wPossbileAttackBitboard, newIndex)) b.wPossbileAttackBitboard += 1UL << newIndex;
             else if (isWhite != 1 && !BinaryUtilities.BitboardContains(b.bPossbileAttackBitboard, newIndex)) b.bPossbileAttackBitboard += 1UL << newIndex;

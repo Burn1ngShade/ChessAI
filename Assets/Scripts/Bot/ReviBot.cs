@@ -27,6 +27,9 @@ public static class ReviBot
 
     //tracked stats (useful for debug, no effect on algorithm)
 
+    static int totalMoveSearchCount;
+    static double totalTime;
+
     static int moveSearchCount;
     static int branchesPrunned;
     static int potentialBranches;
@@ -35,6 +38,12 @@ public static class ReviBot
     /// <summary> Get move with given settings, according to bots search algorithim. </summary>
     public static Move GetMove(Board board, int searchDepth, bool dynamicSearchDepth, int openingBookMode) //on ocasion the transpo table still makes errors but there now rare and small enough idrc
     {
+        if (board.turn == 0)
+        {
+            totalMoveSearchCount = 0;
+            totalTime = 0;
+        }
+
         s = new Stopwatch();
 
         s.Start();
@@ -73,7 +82,10 @@ public static class ReviBot
             return m;
         }
 
-        UnityEngine.Debug.Log($"Moves Searched: {moveSearchCount}, Time Taken: {s.ElapsedMilliseconds}ms\nEval: {move.eval}, Index: {move.move.index}, Depth: {move.move.depth}\nBranches Prunned: {branchesPrunned}, Potential Prunnes: {potentialBranches}");
+        totalMoveSearchCount += moveSearchCount;
+        totalTime += s.Elapsed.TotalSeconds;
+
+        UnityEngine.Debug.Log($"Moves Searched: {moveSearchCount}, Time Taken: {s.ElapsedMilliseconds}ms\nEval: {move.eval}, Index: {move.move.index}, Depth: {move.move.depth}, Branches Prunned: {branchesPrunned}, Potential Prunnes: {potentialBranches}\nTotal Moves Searched: {totalMoveSearchCount}, Total Time: {totalTime}");
 
         Move chosenMove = MoveOrdering.OrderedMoves(board)[move.move.index];
 
