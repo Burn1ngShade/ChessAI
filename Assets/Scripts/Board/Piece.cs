@@ -1,8 +1,19 @@
 /// <summary> Class pertaining help functions related to chess pieces. </summary>
 public static class Piece
 {
+    //const 
+
     public const int MaxMaterial = 78; //for default game of chess
     public const int MaxSideMaterial = 39;
+
+    public const int NullPiece = 0;
+    public const int KingPiece = 1;
+    public const int QueenPiece = 2;
+    public const int RookPiece = 3;
+    public const int BishopPiece = 4;
+    public const int KnightPiece = 5;
+    public const int PawnPiece = 6;
+
 
     /// <summary> Caculates remaining material on board (simplifed values). </summary>
     public static (int white, int black, int total) RemaingMaterial(Board board)

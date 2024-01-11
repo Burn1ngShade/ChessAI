@@ -1,3 +1,5 @@
+using UnityEditor;
+
 /// <summary> The info about a move on the board </summary>
 public class Move
 {
@@ -39,6 +41,9 @@ public class Move
         this.endPos = endPos;
         this.type = type;
     }
+
+    public static Move NullMove => new Move(255, 255, 255);
+    public bool IsNullMove => type == 255;
 
     /// <summary> Hashcode for moves, unique for every move in a position (excluding promotion). </summary>
     public override int GetHashCode()

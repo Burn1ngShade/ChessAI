@@ -7,12 +7,12 @@ public static class Evaluation
     //horizon effect is hitting
 
     /// <summary> Evaluates given chess position. </summary>
-    public static double Evaluate(Board board, List<Move> leadUpMoves)
+    public static double Evaluate(Board board, Move initalMove, int plyFromRoot = 0)
     {
         if (board.state.gameState != 0) //game finished
         {
-            if (board.state.gameState == 1) return 99999;
-            else if (board.state.gameState == 2) return -99999;
+            if (board.state.gameState == 1) return 99999 + (100 - plyFromRoot);
+            else if (board.state.gameState == 2) return -99999 - (100 - plyFromRoot);
             else return 0;
         }
 
@@ -56,7 +56,7 @@ public static class Evaluation
 
         //mobility
 
-        if (!board.isCheck)
+        if (!board.state.isCheck)
         {
             if (board.whiteTurn) eval += ((board.legalMoves.friendlyAll - board.legalMoves.friendlyQueen) - (board.legalMoves.oppAll - board.legalMoves.oppQueen)) * 9;
             else eval += ((board.legalMoves.oppAll - board.legalMoves.oppQueen) - (board.legalMoves.friendlyAll - board.legalMoves.friendlyQueen)) * 9;
@@ -92,16 +92,16 @@ public static class Evaluation
 
         if (interpFactor < 0.4) //if actually in an endgame
         {
-            double mopUpScore = ForceKingFromCentre(board.whiteKingPos, board.blackKingPos, remaingMaterial.white, remaingMaterial.black);
-            if (leadUpMoves != null && leadUpMoves.Count > 0 && Piece.AbsoluteType(leadUpMoves[0].piece) == 1 && remaingMaterial.black > 0)
+            double mopUpScore = ForceKingFromCentre(board.state.whiteKingPos, board.state.blackKingPos, remaingMaterial.white, remaingMaterial.black);
+            if (!initalMove.IsNullMove && Piece.AbsoluteType(initalMove.piece) == 1 && remaingMaterial.black > 0)
             {
                 mopUpScore *= remaingMaterial.white - remaingMaterial.black >= 5 && remaingMaterial.black == 1 ? 8 : 1.5;
             }
 
             eval += mopUpScore * (1 - interpFactor);
 
-            mopUpScore = ForceKingFromCentre(board.blackKingPos, board.whiteKingPos, remaingMaterial.black, remaingMaterial.white);
-            if (leadUpMoves != null && leadUpMoves.Count > 0 && Piece.AbsoluteType(leadUpMoves[0].piece) == 1 && remaingMaterial.white > 0)
+            mopUpScore = ForceKingFromCentre(board.state.blackKingPos, board.state.whiteKingPos, remaingMaterial.black, remaingMaterial.white);
+            if (!initalMove.IsNullMove && Piece.AbsoluteType(initalMove.piece) == 1 && remaingMaterial.white > 0)
             {
                 mopUpScore *= remaingMaterial.black - remaingMaterial.white >= 5 && remaingMaterial.white <= 1 ? 8 : 1.5;
             }
@@ -110,14 +110,18 @@ public static class Evaluation
         }
         if (interpFactor > 0.3)
         {
-            eval += EvaluateKingSaftey(board.board, board.whiteKingPos, true) * interpFactor;
-            eval -= EvaluateKingSaftey(board.board, board.blackKingPos, false) * interpFactor;
+            eval += EvaluateKingSaftey(board.board, board.state.whiteKingPos, true) * interpFactor;
+            eval -= EvaluateKingSaftey(board.board, board.state.blackKingPos, false) * interpFactor;
 
             //castling encouragement
-            if (leadUpMoves != null && leadUpMoves.Count > 0 && (leadUpMoves[0].type == 6 || leadUpMoves[0].type == 7)) eval += 50 * ((board.turn - leadUpMoves.Count) % 2 == 0 ? 1 : -1);
+            if (!initalMove.IsNullMove && (initalMove.type == 6 || initalMove.type == 7)) eval += 50 * ((board.turn - plyFromRoot) % 2 == 0 ? 1 : -1);
         }
 
         return eval;
+    }
+
+    public static double RelativeEvaluate(Board board, Move initalMove, int plyFromRoot = 0){
+        return Evaluate(board, initalMove, plyFromRoot) * (board.whiteTurn ? 1 : -1);
     }
 
     /// <summary> Evaluates pawn structure (past pawns, doubled pawns ect) of current postion. </summary>

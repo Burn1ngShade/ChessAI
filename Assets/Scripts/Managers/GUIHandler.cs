@@ -89,7 +89,7 @@ public class GUIHandler : MonoBehaviour
         infoUI[2].GetChild(0).GetComponent<TMP_Text>().text = $"Castle Rights: {BinaryUtilities.GetBinaryRepresentation(GameHandler.board.state.castleRights, 4)}";
         infoUI[2].GetChild(1).GetComponent<TMP_Text>().text = $"50 Move Counter: {GameHandler.board.state.fiftyMoveRule}";
         infoUI[2].GetChild(2).GetComponent<TMP_Text>().text = $"En Passant File: {GameHandler.board.state.enPassantFile}";
-        infoUI[2].GetChild(3).GetComponent<TMP_Text>().text = $"In Check: {GameHandler.board.isCheck}";
+        infoUI[2].GetChild(3).GetComponent<TMP_Text>().text = $"In Check: {GameHandler.board.state.isCheck}";
 
         infoUI[3].GetChild(0).GetComponent<TMP_Text>().text = $"Show Attack Bitboard: {(showAttackBitboard ? "True" : "False")}";
         infoUI[3].GetChild(1).GetComponent<TMP_Text>().text = $"Show Pin Bitboard: {(showPinBitboard ? "True" : "False")}";
@@ -104,7 +104,7 @@ public class GUIHandler : MonoBehaviour
         evalUI[4].GetChild(2).GetComponent<Image>().fillAmount = (Mathf.Clamp((float)eval, -1200, 1200) + 1200) / 2400;
         evalUI[4].GetChild(3).GetComponent<TMP_Text>().text = $"{(eval >= 0 ? "+" : "")}{((double)eval / 100).ToString("0.00")}";
 
-        evalUI[1].GetChild(0).GetComponent<TMP_Text>().text = $"Bot Mode: {ReviBot.botMode}";
+        evalUI[1].GetChild(0).GetComponent<TMP_Text>().text = $"Bot Mode: {GameHandler.botMode}";
         evalUI[1].GetChild(1).GetComponent<TMP_Text>().text = $"Opening Book Mode: {(ReviBot.openingBookMode == -2 ? "Off" : ReviBot.openingBookMode == -1 ? "Best" : $"{(double)ReviBot.openingBookMode / 4}")}";
         evalUI[1].GetChild(2).GetComponent<TMP_Text>().text = $"Dynamic Depth: {ReviBot.useDynamicDepth}";
         evalUI[1].GetChild(3).GetComponent<TMP_Text>().text = $"Inital Depth: {ReviBot.searchDepth} ({ReviBot.searchDepth + 1})";
@@ -127,7 +127,7 @@ public class GUIHandler : MonoBehaviour
         evalUI[4].GetChild(2).GetComponent<Image>().fillAmount = 0.5f;
         evalUI[4].GetChild(3).GetComponent<TMP_Text>().text = "???";
 
-        evalUI[1].GetChild(0).GetComponent<TMP_Text>().text = $"Bot Mode: {ReviBot.botMode}";
+        evalUI[1].GetChild(0).GetComponent<TMP_Text>().text = $"Bot Mode: {GameHandler.botMode}";
         evalUI[1].GetChild(1).GetComponent<TMP_Text>().text = $"Opening Book Mode: {(ReviBot.openingBookMode == -2 ? "Off" : ReviBot.openingBookMode == -1 ? "Best" : $"{(double)ReviBot.openingBookMode / 4}")}";
         evalUI[1].GetChild(2).GetComponent<TMP_Text>().text = $"Dynamic Depth: {ReviBot.useDynamicDepth}";
         evalUI[1].GetChild(3).GetComponent<TMP_Text>().text = $"Inital Depth: {ReviBot.searchDepth} ({ReviBot.searchDepth + 1})";
@@ -322,7 +322,7 @@ public class GUIHandler : MonoBehaviour
         popupUI[2].gameObject.SetActive(enabled);
 
         popupUI[2].GetChild(5).GetChild(1).GetComponent<TMP_Text>().text = $"{(ReviBot.openingBookMode == -2 ? "Off" : ReviBot.openingBookMode == -1 ? "Best" : $"{(double)ReviBot.openingBookMode / 4}")}";
-        popupUI[2].GetChild(4).GetChild(1).GetComponent<TMP_Text>().text = $"{ReviBot.botMode}";
+        popupUI[2].GetChild(4).GetChild(1).GetComponent<TMP_Text>().text = $"{GameHandler.botMode}";
         popupUI[2].GetChild(3).GetChild(1).GetComponent<TMP_Text>().text = $"{ReviBot.useDynamicDepth}";
         popupUI[2].GetChild(2).GetChild(1).GetComponent<TMP_Text>().text = $"{ReviBot.searchDepth}";
 

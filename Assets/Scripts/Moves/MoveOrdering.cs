@@ -54,15 +54,10 @@ public static class MoveOrdering
             else if (Piece.AbsoluteType(type) == 1) { }
             else //not a capture
             {
-                if (Piece.IsPiece(type))
-                {
-                    score += (int)Math.Floor((Piece.mgPieceTables[Piece.AbsoluteType(type) - 1][isWhite ? BinaryUtilities.FlipBitboardIndex(i) : i] * interpFactor +
-                    Piece.egPieceTables[Piece.AbsoluteType(type) - 1][isWhite ? BinaryUtilities.FlipBitboardIndex(i) : i]) * 0.7);
-                }
-                else
-                {
-                    UnityEngine.Debug.Log("[ERROR INVALID MOVE PIECE?!?!?]" + move.ToString() + " " + board.board[move.startPos]);
-                }
+                score += (int)Math.Floor((Piece.mgPieceTables[Piece.AbsoluteType(type) - 1][isWhite ? BinaryUtilities.FlipBitboardIndex(move.endPos) : move.endPos] * interpFactor +
+                Piece.egPieceTables[Piece.AbsoluteType(type) - 1][isWhite ? BinaryUtilities.FlipBitboardIndex(move.endPos) : move.endPos]) * (1 - interpFactor));
+                score -= (int)Math.Floor((Piece.mgPieceTables[Piece.AbsoluteType(type) - 1][isWhite ? BinaryUtilities.FlipBitboardIndex(move.startPos) : move.startPos] * interpFactor +
+                Piece.egPieceTables[Piece.AbsoluteType(type) - 1][isWhite ? BinaryUtilities.FlipBitboardIndex(move.startPos) : move.startPos]) * (1 - interpFactor));
 
                 //add something taking account of piece tables
 

@@ -7,8 +7,12 @@ using UnityEngine;
 public class GameHandler : MonoBehaviour
 {
     public static GameHandler Instance;
-
     public static Board board;
+
+    public enum BotMode { Off, White, Black, Both }
+    public static BotMode botMode;
+
+    public static bool proBot = true;
 
     public enum GameState { Playing, Promotion, Over }
     public static GameState gameState = GameState.Playing;
@@ -18,12 +22,13 @@ public class GameHandler : MonoBehaviour
     public static byte selectedPromotion = byte.MaxValue;
 
     public readonly List<(KeyCode hotkey, Action action)> hotkeys = new List<(KeyCode hotkey, Action action)>() {
+        (KeyCode.Q, new Action(() => proBot = !proBot)),
         (KeyCode.R, new Action(() => SetUpChessBoard(Board.usedFen))),
         (KeyCode.U, new Action(() => UndoMove())),
-        (KeyCode.Alpha1, new Action(() => { ReviBot.botMode = (ReviBot.BotMode)0; GUIHandler.UpdateBotUINull(); })),
-        (KeyCode.Alpha2, new Action(() => { ReviBot.botMode = (ReviBot.BotMode)1; GUIHandler.UpdateBotUINull(); })),
-        (KeyCode.Alpha3, new Action(() => { ReviBot.botMode = (ReviBot.BotMode)2; GUIHandler.UpdateBotUINull(); })),
-        (KeyCode.Alpha4, new Action(() => { ReviBot.botMode = (ReviBot.BotMode)3; GUIHandler.UpdateBotUINull(); })),
+        (KeyCode.Alpha1, new Action(() => { botMode = (BotMode)0; GUIHandler.UpdateBotUINull(); })),
+        (KeyCode.Alpha2, new Action(() => { botMode = (BotMode)1; GUIHandler.UpdateBotUINull(); })),
+        (KeyCode.Alpha3, new Action(() => { botMode = (BotMode)2; GUIHandler.UpdateBotUINull(); })),
+        (KeyCode.Alpha4, new Action(() => { botMode = (BotMode)3; GUIHandler.UpdateBotUINull(); })),
         (KeyCode.F, new Action(() => { GUIHandler.showAttackBitboard = !GUIHandler.showAttackBitboard; GUIHandler.UpdateUI(); if (!GUIHandler.showAttackBitboard)   GUIHandler.UpdateBoardHighlights(1, GUIHandler.ClearColourHighlights());} )),
         (KeyCode.G, new Action(() => { GUIHandler.showPinBitboard = !GUIHandler.showPinBitboard; GUIHandler.UpdateUI(); if (!GUIHandler.showPinBitboard)   GUIHandler.UpdateBoardHighlights(2, GUIHandler.ClearColourHighlights());} )),
         (KeyCode.H, new Action(() => { GUIHandler.showPossibleAttackBitboard = !GUIHandler.showPossibleAttackBitboard; GUIHandler.UpdateUI(); if (!GUIHandler.showPossibleAttackBitboard) GUIHandler.UpdateBoardHighlights(3, GUIHandler.ClearColourHighlights());} )),
@@ -80,8 +85,8 @@ public class GameHandler : MonoBehaviour
                     return;
                 }
 
-                if (board.whiteTurn && (ReviBot.botMode == ReviBot.BotMode.White || ReviBot.botMode == ReviBot.BotMode.Both)) HandleBotGameplay();
-                else if (!board.whiteTurn && (ReviBot.botMode == ReviBot.BotMode.Black || ReviBot.botMode == ReviBot.BotMode.Both)) HandleBotGameplay();
+                if (board.whiteTurn && (botMode == BotMode.White || botMode == BotMode.Both)) HandleBotGameplay();
+                else if (!board.whiteTurn && (botMode == BotMode.Black || botMode == BotMode.Both)) HandleBotGameplay();
                 else HandleGameplay();
                 break;
             case GameState.Promotion:
@@ -95,9 +100,16 @@ public class GameHandler : MonoBehaviour
     /// <summary> Handles bot gameplay. </summary>
     void HandleBotGameplay()
     {
-        Move m = ReviBot.GetMove(board, ReviBot.searchDepth, ReviBot.useDynamicDepth, ReviBot.openingBookMode);
-
-        board.MakeMove(m);
+        if (!proBot)
+        {
+            Move m = ReviBot.GetMove(board, ReviBot.searchDepth, ReviBot.useDynamicDepth, ReviBot.openingBookMode);
+            board.MakeMove(m);
+        }
+        else
+        {
+            Move m = ReviBotPro.StartSearch(board, ReviBot.searchDepth, ReviBot.useDynamicDepth, ReviBot.openingBookMode);
+            board.MakeMove(m);
+        }
 
         GUIHandler.UpdateBoardUI(new List<Move>(), GUIHandler.GenerateLastMoveHighlight());
     }
@@ -187,7 +199,7 @@ public class GameHandler : MonoBehaviour
     /// <summary> Updates bot mode from popup menu. </summary>
     public void AdjustBotMode(int magnitude)
     {
-        ReviBot.botMode = (ReviBot.BotMode)Math.Clamp((int)ReviBot.botMode + magnitude, 0, 3);
+        botMode = (BotMode)Math.Clamp((int)botMode + magnitude, 0, 3);
         GUIHandler.UpdateBotSettingsPopup(true);
     }
 

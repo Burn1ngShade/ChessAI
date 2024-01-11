@@ -5,10 +5,6 @@ using System.Diagnostics;
 /// <summary> Chess bot of chess engine, contains search engine. [PLANNED DEPRECATION (for 2.0 bot)] </summary>
 public static class ReviBot
 {
-    //settings
-    public enum BotMode { Off, White, Black, Both }
-    public static BotMode botMode;
-
     public static bool useDynamicDepth = true;
     public static int searchDepth = 4; //this number is one lower than the actual depth (4 is really searching 5 moves)
     public static int openingBookMode = -1; //-2 off -1 on 0 1 2 3 4 are rng
@@ -111,9 +107,9 @@ public static class ReviBot
     static (double eval, MoveNode index) AlphaBeta4(Board board, int depth, double alpha, double beta, bool whiteToPlay, List<Move> moves)
     {
         //reached end of depth or game final state been reached, so just evaluate current position (quite eval)
-        if (board.state.gameState != 0 || (depth <= 0 && !board.majorEvent && !board.isCheck) || depth <= searchDepthMaxExtend)
+        if (board.state.gameState != 0 || (depth <= 0 && !board.state.isCaptureOrPromotion && !board.state.isCheck) || depth <= searchDepthMaxExtend)
         {
-            return (Evaluation.Evaluate(board, moves), new MoveNode(-int.MaxValue, 0, null));
+            return (Evaluation.Evaluate(board, moves[0]), new MoveNode(-int.MaxValue, 0, null));
         }
 
         if (moves.Count != 0 && board.doublePreviousPositions.Contains(board.state.zobristKey))

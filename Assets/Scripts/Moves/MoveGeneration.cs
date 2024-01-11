@@ -24,8 +24,8 @@ public static class MoveGeneration
 
                 if (Piece.AbsoluteType(b.board[i]) == 1)
                 {
-                    if (isWhite) b.whiteKingPos = i;
-                    else b.blackKingPos = i;
+                    if (isWhite) b.state.whiteKingPos = i;
+                    else b.state.blackKingPos = i;
                 }
             }
 
@@ -57,7 +57,7 @@ public static class MoveGeneration
 
         GenerateAttackBitboards(b, newMoves);
 
-        if (checkState != 0) b.isCheck = true;
+        if (checkState != 0) b.state.isCheck = true;
 
         List<Move> validMoves = new List<Move>();
 
@@ -132,8 +132,8 @@ public static class MoveGeneration
                 }
             }
 
-            if (Piece.SimplifiedMaterialValue(b.board[m.endPos]) >= 3) b.majorEvent = true;
-            else if (m.type >= 2 && m.type <= 5) b.majorEvent = true;
+            if (Piece.SimplifiedMaterialValue(b.board[m.endPos]) >= 3) b.state.isCaptureOrPromotion = true;
+            else if (m.type >= 2 && m.type <= 5) b.state.isCaptureOrPromotion = true;
 
             validMoves.Add(newMoves[i]);
             b.legalMoves.friendlyAll++;
@@ -172,8 +172,8 @@ public static class MoveGeneration
         checker = 0;
 
         b.legalMoves = (0, 0, 0, 0);
-        b.majorEvent = false;
-        b.isCheck = false;
+        b.state.isCaptureOrPromotion = false;
+        b.state.isCheck = false;
     }
 
     /// <summary> Adds move to list of pseudo-legal moves. </summary>
@@ -206,7 +206,7 @@ public static class MoveGeneration
         b.attackBitboard = b.wAttackBitboard | b.bAttackBitboard;
 
         //pins
-        byte kingPos = b.whiteTurn ? b.whiteKingPos : b.blackKingPos;
+        byte kingPos = b.whiteTurn ? b.state.whiteKingPos : b.state.blackKingPos;
         (int x, int y) kp = (Piece.File(kingPos), Piece.Rank(kingPos));
 
         for (int k = 0; k < 64; k++)

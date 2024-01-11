@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.VisualScripting;
 using UnityEditor;
 
 /// <summary> Class representing a state of a chess game. </summary>
@@ -15,9 +16,6 @@ public class Board
 
     public byte[] board = new byte[64]; //actual values of board
 
-    public byte whiteKingPos;
-    public byte blackKingPos;
-
     //bitboard for piece locations
     public ulong pieceBitboard = 0;
     public ulong wPieceBitboard = 0;
@@ -30,14 +28,12 @@ public class Board
 
     //board info
     public (int friendlyAll, int friendlyQueen, int oppAll, int oppQueen) legalMoves;
-    public bool majorEvent;
-    public bool isCheck;
 
     public int turn = 0;
     public BoardState state = new BoardState();
 
     //useful shorthand
-    public byte friendlyKingPos => whiteTurn ? whiteKingPos : blackKingPos;
+    public byte friendlyKingPos => whiteTurn ? state.whiteKingPos : state.blackKingPos;
     public ulong oppAttackBitboard => whiteTurn ? bAttackBitboard : wAttackBitboard;
     public bool whiteTurn => turn % 2 == 0;
 
@@ -69,8 +65,8 @@ public class Board
     {
         Array.Copy(b.board, board, 64);
 
-        whiteKingPos = b.whiteKingPos;
-        blackKingPos = b.blackKingPos;
+        state.whiteKingPos = b.state.whiteKingPos;
+        state.blackKingPos = b.state.blackKingPos;
 
         pieceBitboard = b.pieceBitboard;
         wPieceBitboard = b.wPieceBitboard;
@@ -282,7 +278,7 @@ public class Board
 
         if (GUIHandler.legalMoves == 0)
         {
-            if (isCheck) state.gameState = whiteTurn ? 2 : 1;
+            if (state.isCheck) state.gameState = whiteTurn ? 2 : 1;
             else state.gameState = 3;
         }
         else if (state.fiftyMoveRule == 0)
@@ -303,14 +299,15 @@ public class BoardState
     public ulong zobristKey;
     public int gameState;
 
+    public bool isCheck;
+    public bool isCaptureOrPromotion;
+
+    public byte whiteKingPos;
+    public byte blackKingPos;
+
     public BoardState()
     {
-        this.fiftyMoveRule = 100;
-        this.castleRights = 0;
-        this.enPassantFile = 0;
-
-        this.zobristKey = 0;
-        this.gameState = 0;
+        fiftyMoveRule = 100;
     }
 
     public BoardState(BoardState state)
@@ -321,5 +318,11 @@ public class BoardState
 
         zobristKey = state.zobristKey;
         gameState = state.gameState;
+
+        isCheck = state.isCheck;
+        isCaptureOrPromotion = state.isCaptureOrPromotion;
+
+        whiteKingPos = state.whiteKingPos;
+        blackKingPos = state.blackKingPos;
     }
 }
