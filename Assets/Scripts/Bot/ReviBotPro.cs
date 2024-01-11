@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Net.Http.Headers;
 using Unity.VisualScripting;
 
@@ -16,18 +17,16 @@ public static class ReviBotPro
     public static bool useDynamicDepth = true;
     public static int searchDepth = 4; //this number is one lower than the actual depth (4 is really searching 5 moves)
     public static int openingBookMode = -1; //-2 off -1 on 0 1 2 3 4 are rng
-
-    static int searchDepthMaxExtend;
-
     //search details
 
     public const int TranspositionChangeCap = 100;
-    public const int SearchDepthIncreaseCap = 1000; //will rerun with increased search cap if not exceded
+    public const int SearchDepthIncreaseCap = 1200; //will rerun with increased search cap if not exceded
+    public const int MaxExtensionCount = 16; //max number of times a search will be deepened to look at something
 
     static TranspositionTablePro transpositions;
 
     //opening books stuff
-    public static OpeningBook openingBook => ReviBot.openingBook;
+    public static OpeningBook openingBook;
     static SearchDiagnostics diagnostics;
 
     //references
@@ -38,8 +37,11 @@ public static class ReviBotPro
 
 
     /// <summary> Get move with given settings, according to bots search algorithim. </summary>
-    public static Move StartSearch(Board searchBoard, int searchDepth, bool dynamicSearchDepth, int openingBookMode) //on ocasion the transpo table still makes errors but there now rare and small enough idrc
+    public static Move StartSearch(Board searchBoard, int searchDepth, bool dynamicDepth, int openBookMode) //on ocasion the transpo table still makes errors but there now rare and small enough idrc
     {
+        openingBookMode = openBookMode;
+        useDynamicDepth = dynamicDepth;
+
         board = new Board(searchBoard);
 
         if (board.turn == 0 || diagnostics == null) diagnostics = new SearchDiagnostics();
@@ -55,20 +57,18 @@ public static class ReviBotPro
 
         diagnostics.StartMoveDiagnostics();
 
-        //always end with the opponents move being considered, this stops the ai sacrificing a piece taking a knight or smthing without realising it can be captured back
-        searchDepthMaxExtend = searchDepth % 2 == 0 ? -2 : -1;
-        transpositions = new TranspositionTablePro(searchDepth + (searchDepth % 2 == 0 ? 3 : 2));
+        transpositions = new TranspositionTablePro(searchDepth + (searchDepth % 2 == 0 ? 3 : 2) + MaxExtensionCount);
 
-        double eval = Search(searchDepth, 0, double.MinValue, double.MaxValue);
+        double eval = Search(searchDepth, 0, double.MinValue, double.MaxValue, 0);
 
-        // if (s.ElapsedMilliseconds < SearchDepthIncreaseCap && dynamicSearchDepth)
-        // {
-        //     UnityEngine.Debug.Log($"[PRO] Increasing Search Depth From {searchDepth} To {searchDepth + 1}\nTime Taken: {s.ElapsedMilliseconds}ms\nEval: {move.eval}, Index: {move.move.index}");
-        //     Move m = StartSearch(board, searchDepth + 1, dynamicSearchDepth, openingBookMode);
-        //     return m;
-        // }
+        if (diagnostics.searchElapsedTime < SearchDepthIncreaseCap && useDynamicDepth)
+        {
+            UnityEngine.Debug.Log($"[ReviBotPro], Total Search Elapsed Time: {diagnostics.searchElapsedTime}ms, Increasing Search Depth From {searchDepth} To {searchDepth + 1}");
+            Move m = StartSearch(board, searchDepth + 1, useDynamicDepth, openingBookMode);
+            return m;
+        }
 
-        //converts to side to move relative 
+        // converts to side to move relative 
         diagnostics.currentMove.eval = eval;
         diagnostics.currentMove.depth = searchDepth;
         diagnostics.StopMoveDiagnostics();
@@ -79,12 +79,17 @@ public static class ReviBotPro
     }
 
     /// <summary> 4th iteration of alpha beta search algorithim for the bot (non side to move relative). </summary>
-    static double Search(int plyRemaining, int plyFroomRoot, double alpha, double beta)
+    static double Search(int plyRemaining, int plyFroomRoot, double alpha, double beta, int extensions)
     {
         //reached end of depth or game final state been reached, so just evaluate current position (quite eval)
-        if (board.state.gameState > 0 || (plyRemaining <= 0 && !board.state.isCaptureOrPromotion && !board.state.isCheck) || plyRemaining <= searchDepthMaxExtend)
+        if (board.state.gameState > 0)
         {
             return Evaluation.RelativeEvaluate(board, searchInitalMove, plyFroomRoot);
+        }
+        
+        if (plyRemaining == 0)
+        {
+            return QuiescenceSearch(alpha, beta, plyFroomRoot);
         }
 
         if (plyFroomRoot > 0)
@@ -110,20 +115,34 @@ public static class ReviBotPro
         {
             Move move = orderedMoves[i];
             bool isCapture = board.board[move.endPos] != 0;
+            int absType = Piece.AbsoluteType(board.board[move.startPos]);
 
             if (plyFroomRoot == 0) searchInitalMove = move;
             diagnostics.currentMove.movesSearched++;
 
             board.MakeMove(move);
 
+            int extend = 0;
+            if (extensions < MaxExtensionCount)
+            {
+                if (board.state.isCheck)
+                {
+                    extend = 1;
+                }
+                else if (absType == Piece.PawnPiece && (Piece.Rank(move.endPos) == 7 || Piece.Rank(move.endPos) == 0))
+                {
+                    extend = 1;
+                }
+            }
+
             double eval = 0;
             bool needsFullSearch = true;
-            if (plyRemaining >= 3 && i >= 3 && !isCapture)
+            if (extend == 0 && plyRemaining >= 3 && i >= 3 && !isCapture)
             {
-                eval = -Search(plyRemaining - 2, plyFroomRoot + 1, -beta, -alpha);
+                eval = -Search(plyRemaining - 2, plyFroomRoot + 1, -beta, -alpha, extensions);
                 needsFullSearch = eval > alpha;
             }
-            if (needsFullSearch) eval = -Search(plyRemaining - 1, plyFroomRoot + 1, -beta, -alpha);
+            if (needsFullSearch) eval = -Search(plyRemaining - 1 + extend, plyFroomRoot + 1, -beta, -alpha, extensions + extend);
 
             board.UndoMove();
 
@@ -144,6 +163,40 @@ public static class ReviBotPro
         }
 
         if (plyFroomRoot > 0) transpositions.Add(board.state.zobristKey, alpha, plyFroomRoot);
+        return alpha;
+    }
+
+    static double QuiescenceSearch(double alpha, double beta, int plyFromRoot)
+    {
+        double eval = Evaluation.RelativeEvaluate(board, searchInitalMove, plyFromRoot); //get base eval
+        if (eval >= beta)
+        {
+            return beta;
+        }
+        if (eval > alpha)
+        {
+            alpha = eval;
+        }
+
+        List<Move> moves = MoveOrdering.OrderedMoves(board);
+        for (int i = 0; i < moves.Count; i++)
+        {
+            if (board.board[moves[i].endPos] == 0) continue; //we are only checking captures
+
+            board.MakeMove(moves[i]);
+            eval = -QuiescenceSearch(-beta, -alpha, plyFromRoot + 1);
+            board.UndoMove();
+
+            if (eval >= beta)
+            {
+                return beta;
+            }
+            if (eval > alpha)
+            {
+                alpha = eval;
+            }
+        }
+
         return alpha;
     }
 
@@ -174,9 +227,12 @@ public static class ReviBotPro
         public MoveDiagnostics currentMove;
 
         Stopwatch searchWatch = new Stopwatch();
+        public double searchElapsedTime => searchWatch.ElapsedMilliseconds;
 
         public void StartMoveDiagnostics()
         {
+            if (searchWatch.IsRunning) return;
+
             currentMove = new MoveDiagnostics();
 
             searchWatch.Start();
@@ -202,8 +258,8 @@ public static class ReviBotPro
                 return;
             }
 
-            string output = $"[ReviBotPro] Total Moves Searched: {totalMovesSearched}, Total Time Taken: {totalTimeTaken}\n";
-            output += $"Move Eval: {currentMove.eval}, Move Depth: {currentMove.depth}, Moves Searched {currentMove.movesSearched}, Time Taken: {currentMove.timeTaken}\n";
+            string output = $"[ReviBotPro] Total Moves Searched: {totalMovesSearched}, Total Time Taken: {Math.Round(totalTimeTaken, 2)}s\n";
+            output += $"Move Eval: {currentMove.eval}, Move Depth: {currentMove.depth}, Moves Searched {currentMove.movesSearched}, Time Taken: {Math.Round(currentMove.timeTaken, 2)}s\n";
             output += $"Potential Transpositions: {currentMove.potentialBranches}, Transpositions Prunned: {currentMove.branchesPrunned}";
             UnityEngine.Debug.Log(output);
         }

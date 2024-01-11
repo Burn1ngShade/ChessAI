@@ -11,8 +11,9 @@ public class GameHandler : MonoBehaviour
 
     public enum BotMode { Off, White, Black, Both }
     public static BotMode botMode;
-
-    public static bool proBot = true;
+    public static int botSearchDepth = 6;
+    public static bool useDynamicDepth = true;
+    public static int openBookMode = -1;
 
     public enum GameState { Playing, Promotion, Over }
     public static GameState gameState = GameState.Playing;
@@ -22,7 +23,6 @@ public class GameHandler : MonoBehaviour
     public static byte selectedPromotion = byte.MaxValue;
 
     public readonly List<(KeyCode hotkey, Action action)> hotkeys = new List<(KeyCode hotkey, Action action)>() {
-        (KeyCode.Q, new Action(() => proBot = !proBot)),
         (KeyCode.R, new Action(() => SetUpChessBoard(Board.usedFen))),
         (KeyCode.U, new Action(() => UndoMove())),
         (KeyCode.Alpha1, new Action(() => { botMode = (BotMode)0; GUIHandler.UpdateBotUINull(); })),
@@ -32,9 +32,9 @@ public class GameHandler : MonoBehaviour
         (KeyCode.F, new Action(() => { GUIHandler.showAttackBitboard = !GUIHandler.showAttackBitboard; GUIHandler.UpdateUI(); if (!GUIHandler.showAttackBitboard)   GUIHandler.UpdateBoardHighlights(1, GUIHandler.ClearColourHighlights());} )),
         (KeyCode.G, new Action(() => { GUIHandler.showPinBitboard = !GUIHandler.showPinBitboard; GUIHandler.UpdateUI(); if (!GUIHandler.showPinBitboard)   GUIHandler.UpdateBoardHighlights(2, GUIHandler.ClearColourHighlights());} )),
         (KeyCode.H, new Action(() => { GUIHandler.showPossibleAttackBitboard = !GUIHandler.showPossibleAttackBitboard; GUIHandler.UpdateUI(); if (!GUIHandler.showPossibleAttackBitboard) GUIHandler.UpdateBoardHighlights(3, GUIHandler.ClearColourHighlights());} )),
-        (KeyCode.J, new Action(() => {ReviBot.searchDepth = Math.Clamp(ReviBot.searchDepth - 1, 2, 8); GUIHandler.UpdateBotUINull();})),
-        (KeyCode.K, new Action(() => {ReviBot.searchDepth = Math.Clamp(ReviBot.searchDepth + 1, 2, 8); GUIHandler.UpdateBotUINull();})),
-        (KeyCode.L, new Action(() => {ReviBot.useDynamicDepth = !ReviBot.useDynamicDepth; GUIHandler.UpdateBotUINull();})),
+        (KeyCode.J, new Action(() => {botSearchDepth = Math.Clamp(botSearchDepth - 1, 2, 20); GUIHandler.UpdateBotUINull();})),
+        (KeyCode.K, new Action(() => {botSearchDepth = Math.Clamp(botSearchDepth + 1, 2, 20); GUIHandler.UpdateBotUINull();})),
+        (KeyCode.L, new Action(() => {useDynamicDepth = !useDynamicDepth; GUIHandler.UpdateBotUINull();})),
     };
 
     void Awake()
@@ -44,7 +44,7 @@ public class GameHandler : MonoBehaviour
 
     private void Start()
     {
-        ReviBot.openingBook = new OpeningBook(File.ReadAllText("Assets/Book.txt"));
+        ReviBotPro.openingBook = new OpeningBook(File.ReadAllText("Assets/Book.txt"));
         SetUpChessBoard(Board.usedFen);
     }
 
@@ -100,16 +100,8 @@ public class GameHandler : MonoBehaviour
     /// <summary> Handles bot gameplay. </summary>
     void HandleBotGameplay()
     {
-        if (!proBot)
-        {
-            Move m = ReviBot.GetMove(board, ReviBot.searchDepth, ReviBot.useDynamicDepth, ReviBot.openingBookMode);
-            board.MakeMove(m);
-        }
-        else
-        {
-            Move m = ReviBotPro.StartSearch(board, ReviBot.searchDepth, ReviBot.useDynamicDepth, ReviBot.openingBookMode);
-            board.MakeMove(m);
-        }
+        Move m = ReviBotPro.StartSearch(board, botSearchDepth, useDynamicDepth, openBookMode);
+        board.MakeMove(m);
 
         GUIHandler.UpdateBoardUI(new List<Move>(), GUIHandler.GenerateLastMoveHighlight());
     }
@@ -192,7 +184,7 @@ public class GameHandler : MonoBehaviour
     /// <summary> Updates bot settings from popup menu. </summary>
     public void AdjustBotDepth(int magnitude)
     {
-        ReviBot.searchDepth = Math.Clamp(ReviBot.searchDepth + magnitude, 2, 12);
+        botSearchDepth = Math.Clamp(botSearchDepth + magnitude, 2, 20);
         GUIHandler.UpdateBotSettingsPopup(true);
     }
 
@@ -205,14 +197,14 @@ public class GameHandler : MonoBehaviour
 
     public void AdjustOpeningBookMode(int magnitude)
     {
-        ReviBot.openingBookMode = ReviBot.openingBookMode + magnitude < -2 ? 4 : ReviBot.openingBookMode + magnitude > 4 ? -2 : ReviBot.openingBookMode + magnitude;
+        openBookMode = openBookMode + magnitude < -2 ? 4 : openBookMode + magnitude > 4 ? -2 : openBookMode + magnitude;
         GUIHandler.UpdateBotSettingsPopup(true);
     }
 
     /// <summary> Toggles dynamic bot depth from popup menu. </summary>
     public void ToggleDynamicBotDepth()
     {
-        ReviBot.useDynamicDepth = !ReviBot.useDynamicDepth;
+        useDynamicDepth = !useDynamicDepth;
         GUIHandler.UpdateBotSettingsPopup(true);
     }
 
@@ -220,8 +212,8 @@ public class GameHandler : MonoBehaviour
     /// <summary> Updates bot settings to fast bot preset. </summary>
     public void FastBotSettings()
     {
-        ReviBot.searchDepth = 3;
-        ReviBot.useDynamicDepth = false;
+        botSearchDepth = 4;
+        useDynamicDepth = false;
 
         GUIHandler.UpdateBotUINull();
     }
@@ -229,8 +221,8 @@ public class GameHandler : MonoBehaviour
     /// <summary> Updates bot settings to smart bot preset. </summary>
     public void SmartBotSettings()
     {
-        ReviBot.searchDepth = 4;
-        ReviBot.useDynamicDepth = true;
+        botSearchDepth = 6;
+        useDynamicDepth = true;
 
         GUIHandler.UpdateBotUINull();
     }

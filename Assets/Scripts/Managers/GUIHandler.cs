@@ -105,14 +105,13 @@ public class GUIHandler : MonoBehaviour
         evalUI[4].GetChild(3).GetComponent<TMP_Text>().text = $"{(eval >= 0 ? "+" : "")}{((double)eval / 100).ToString("0.00")}";
 
         evalUI[1].GetChild(0).GetComponent<TMP_Text>().text = $"Bot Mode: {GameHandler.botMode}";
-        evalUI[1].GetChild(1).GetComponent<TMP_Text>().text = $"Opening Book Mode: {(ReviBot.openingBookMode == -2 ? "Off" : ReviBot.openingBookMode == -1 ? "Best" : $"{(double)ReviBot.openingBookMode / 4}")}";
-        evalUI[1].GetChild(2).GetComponent<TMP_Text>().text = $"Dynamic Depth: {ReviBot.useDynamicDepth}";
-        evalUI[1].GetChild(3).GetComponent<TMP_Text>().text = $"Inital Depth: {ReviBot.searchDepth} ({ReviBot.searchDepth + 1})";
+        evalUI[1].GetChild(1).GetComponent<TMP_Text>().text = $"Opening Book Mode: {(GameHandler.openBookMode == -2 ? "Off" : GameHandler.openBookMode == -1 ? "Best" : $"{(double)GameHandler.openBookMode / 4}")}";
+        evalUI[1].GetChild(2).GetComponent<TMP_Text>().text = $"Dynamic Depth: {GameHandler.useDynamicDepth}";
+        evalUI[1].GetChild(3).GetComponent<TMP_Text>().text = $"Inital Depth: {GameHandler.botSearchDepth} ({GameHandler.botSearchDepth + 1})";
 
         evalUI[2].GetChild(0).GetComponent<TMP_Text>().text = $"Used Depth: {searchDepth} ({searchDepth + 1})";
-        evalUI[2].GetChild(1).GetComponent<TMP_Text>().text = $"Used Extension Depth: {searchDepth + (searchDepth % 2 == 0 ? 3 : 2)} ({searchDepth + ((searchDepth % 2 == 0 ? 4 : 3))})";
-        evalUI[2].GetChild(2).GetComponent<TMP_Text>().text = $"Time Taken: {Math.Round(timeTaken.TotalSeconds, 2)}s";
-        evalUI[2].GetChild(3).GetComponent<TMP_Text>().text = $"Time Per Move: {Math.Round(timeTaken.TotalMilliseconds / (movesSearched + 1), 3)}ms";
+        evalUI[2].GetChild(1).GetComponent<TMP_Text>().text = $"Time Taken: {Math.Round(timeTaken.TotalSeconds, 2)}s";
+        evalUI[2].GetChild(2).GetComponent<TMP_Text>().text = $"Time Per Move: {Math.Round(timeTaken.TotalMilliseconds / (movesSearched + 1), 3)}ms";
 
         evalUI[3].GetChild(0).GetComponent<TMP_Text>().text = $"Moves Searched: {movesSearched}";
         evalUI[3].GetChild(1).GetComponent<TMP_Text>().text = $"Best Move: {FormattingUtillites.BoardCode(move.startPos)} -> {FormattingUtillites.BoardCode(move.endPos)}";
@@ -128,14 +127,13 @@ public class GUIHandler : MonoBehaviour
         evalUI[4].GetChild(3).GetComponent<TMP_Text>().text = "???";
 
         evalUI[1].GetChild(0).GetComponent<TMP_Text>().text = $"Bot Mode: {GameHandler.botMode}";
-        evalUI[1].GetChild(1).GetComponent<TMP_Text>().text = $"Opening Book Mode: {(ReviBot.openingBookMode == -2 ? "Off" : ReviBot.openingBookMode == -1 ? "Best" : $"{(double)ReviBot.openingBookMode / 4}")}";
-        evalUI[1].GetChild(2).GetComponent<TMP_Text>().text = $"Dynamic Depth: {ReviBot.useDynamicDepth}";
-        evalUI[1].GetChild(3).GetComponent<TMP_Text>().text = $"Inital Depth: {ReviBot.searchDepth} ({ReviBot.searchDepth + 1})";
+        evalUI[1].GetChild(1).GetComponent<TMP_Text>().text = $"Opening Book Mode: {(GameHandler.openBookMode == -2 ? "Off" : GameHandler.openBookMode == -1 ? "Best" : $"{(double)GameHandler.openBookMode / 4}")}";
+        evalUI[1].GetChild(2).GetComponent<TMP_Text>().text = $"Dynamic Depth: {GameHandler.useDynamicDepth}";
+        evalUI[1].GetChild(3).GetComponent<TMP_Text>().text = $"Inital Depth: {GameHandler.botSearchDepth} ({GameHandler.botSearchDepth + 1})";
 
-        evalUI[2].GetChild(0).GetComponent<TMP_Text>().text = $"Used Depth: {ReviBot.searchDepth} ({ReviBot.searchDepth + 1})";
-        evalUI[2].GetChild(1).GetComponent<TMP_Text>().text = $"Used Extension Depth: {ReviBot.searchDepth + (ReviBot.searchDepth % 2 == 0 ? 3 : 2)} ({ReviBot.searchDepth + ((ReviBot.searchDepth % 2 == 0 ? 4 : 3))})";
-        evalUI[2].GetChild(2).GetComponent<TMP_Text>().text = $"Time Taken: 0s";
-        evalUI[2].GetChild(3).GetComponent<TMP_Text>().text = $"Time Per Move: 0ms";
+        evalUI[2].GetChild(0).GetComponent<TMP_Text>().text = $"Used Depth: {GameHandler.botSearchDepth} ({GameHandler.botSearchDepth + 1})";
+        evalUI[2].GetChild(1).GetComponent<TMP_Text>().text = $"Time Taken: 0s";
+        evalUI[2].GetChild(2).GetComponent<TMP_Text>().text = $"Time Per Move: 0ms";
 
         evalUI[3].GetChild(0).GetComponent<TMP_Text>().text = $"Moves Searched: 0";
         evalUI[3].GetChild(1).GetComponent<TMP_Text>().text = $"Best Move: None";
@@ -321,10 +319,10 @@ public class GUIHandler : MonoBehaviour
         popupBlocker.gameObject.SetActive(enabled);
         popupUI[2].gameObject.SetActive(enabled);
 
-        popupUI[2].GetChild(5).GetChild(1).GetComponent<TMP_Text>().text = $"{(ReviBot.openingBookMode == -2 ? "Off" : ReviBot.openingBookMode == -1 ? "Best" : $"{(double)ReviBot.openingBookMode / 4}")}";
+        popupUI[2].GetChild(5).GetChild(1).GetComponent<TMP_Text>().text = $"{(GameHandler.openBookMode == -2 ? "Off" : GameHandler.openBookMode == -1 ? "Best" : $"{(double)GameHandler.openBookMode / 4}")}";
         popupUI[2].GetChild(4).GetChild(1).GetComponent<TMP_Text>().text = $"{GameHandler.botMode}";
-        popupUI[2].GetChild(3).GetChild(1).GetComponent<TMP_Text>().text = $"{ReviBot.useDynamicDepth}";
-        popupUI[2].GetChild(2).GetChild(1).GetComponent<TMP_Text>().text = $"{ReviBot.searchDepth}";
+        popupUI[2].GetChild(3).GetChild(1).GetComponent<TMP_Text>().text = $"{GameHandler.useDynamicDepth}";
+        popupUI[2].GetChild(2).GetChild(1).GetComponent<TMP_Text>().text = $"{GameHandler.botSearchDepth}";
 
         UpdateBotUINull();
 
