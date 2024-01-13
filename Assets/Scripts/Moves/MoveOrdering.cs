@@ -28,6 +28,12 @@ public static class MoveOrdering
             byte captureType = board.board[move.endPos];
             bool isWhite = Piece.IsWhite(type);
 
+            if (type <= 0 || type > 12)
+            {
+                UnityEngine.Debug.Log("THIS SHOULDNT BE HAPPENING!?!?!?!?");
+                UnityEngine.Debug.Log(move);
+            }
+
             bool recapturePossible = BinaryUtilities.BitboardContains(board.whiteTurn ? board.bPossbileAttackBitboard : board.wPossbileAttackBitboard, board.possibleMoves[i].endPos);
 
             if (board.board[move.endPos] != 0) //if its a capture

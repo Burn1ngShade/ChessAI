@@ -107,9 +107,9 @@ public class GUIHandler : MonoBehaviour
         evalUI[1].GetChild(0).GetComponent<TMP_Text>().text = $"Bot Mode: {GameHandler.botMode}";
         evalUI[1].GetChild(1).GetComponent<TMP_Text>().text = $"Opening Book Mode: {(GameHandler.openBookMode == -2 ? "Off" : GameHandler.openBookMode == -1 ? "Best" : $"{(double)GameHandler.openBookMode / 4}")}";
         evalUI[1].GetChild(2).GetComponent<TMP_Text>().text = $"Dynamic Depth: {GameHandler.useDynamicDepth}";
-        evalUI[1].GetChild(3).GetComponent<TMP_Text>().text = $"Inital Depth: {GameHandler.botSearchDepth} ({GameHandler.botSearchDepth + 1})";
+        evalUI[1].GetChild(3).GetComponent<TMP_Text>().text = $"Inital Depth: {GameHandler.botSearchDepth}";
 
-        evalUI[2].GetChild(0).GetComponent<TMP_Text>().text = $"Used Depth: {searchDepth} ({searchDepth + 1})";
+        evalUI[2].GetChild(0).GetComponent<TMP_Text>().text = $"Used Depth: {searchDepth}";
         evalUI[2].GetChild(1).GetComponent<TMP_Text>().text = $"Time Taken: {Math.Round(timeTaken.TotalSeconds, 2)}s";
         evalUI[2].GetChild(2).GetComponent<TMP_Text>().text = $"Time Per Move: {Math.Round(timeTaken.TotalMilliseconds / (movesSearched + 1), 3)}ms";
 
@@ -129,9 +129,9 @@ public class GUIHandler : MonoBehaviour
         evalUI[1].GetChild(0).GetComponent<TMP_Text>().text = $"Bot Mode: {GameHandler.botMode}";
         evalUI[1].GetChild(1).GetComponent<TMP_Text>().text = $"Opening Book Mode: {(GameHandler.openBookMode == -2 ? "Off" : GameHandler.openBookMode == -1 ? "Best" : $"{(double)GameHandler.openBookMode / 4}")}";
         evalUI[1].GetChild(2).GetComponent<TMP_Text>().text = $"Dynamic Depth: {GameHandler.useDynamicDepth}";
-        evalUI[1].GetChild(3).GetComponent<TMP_Text>().text = $"Inital Depth: {GameHandler.botSearchDepth} ({GameHandler.botSearchDepth + 1})";
+        evalUI[1].GetChild(3).GetComponent<TMP_Text>().text = $"Inital Depth: {GameHandler.botSearchDepth}";
 
-        evalUI[2].GetChild(0).GetComponent<TMP_Text>().text = $"Used Depth: {GameHandler.botSearchDepth} ({GameHandler.botSearchDepth + 1})";
+        evalUI[2].GetChild(0).GetComponent<TMP_Text>().text = $"Used Depth: {GameHandler.botSearchDepth}";
         evalUI[2].GetChild(1).GetComponent<TMP_Text>().text = $"Time Taken: 0s";
         evalUI[2].GetChild(2).GetComponent<TMP_Text>().text = $"Time Per Move: 0ms";
 

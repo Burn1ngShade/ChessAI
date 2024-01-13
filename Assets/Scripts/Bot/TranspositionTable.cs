@@ -1,71 +1,111 @@
-using System.Collections.Generic;
-using UnityEngine;
+using System;
+using Unity.Mathematics;
 
-/// <summary> Class storing chess positions, and their data </summary>
 public class TranspositionTable
 {
-    Dictionary<ulong, (double eval, MoveNode index, double alphaBeta)>[] positions;
+    public const int Exact = 0;
+    public const int LowerBound = 1;
+    public const int UpperBound = 2;
 
-    int depth;
+    //number of entrys the transposition table can hold
+    public readonly ulong positionCount;
+    public Position[] positions;
 
-    public TranspositionTable(int depth)
+    public TranspositionTable(int size) //size in megabyte
     {
-        this.depth = depth;
+        int tableEntrySize = System.Runtime.InteropServices.Marshal.SizeOf<Position>();
+        int tableByteSize = size * 1024 * 1024; //converting from mb to kb to b
 
-        Clear();
+        positionCount = (ulong)(tableByteSize / tableEntrySize);
+        positions = new Position[positionCount];
     }
 
-    /// <summary> Clear all data from transposition table. </summary>
     public void Clear()
     {
-        positions = new Dictionary<ulong, (double eval, MoveNode index, double alphaBeta)>[depth + 1];
-
-        for (int i = 0; i <= depth; i++)
+        for (int i = 0; i < positions.Length; i++)
         {
-            positions[i] = new Dictionary<ulong, (double eval, MoveNode index, double alphaBeta)>();
+            positions[i] = new Position();
         }
     }
 
-    /// <summary> Checks if table contains given move, at given depth. </summary>
-    public bool Contains(ulong zobristKey, int depth)
+    public double LookupEvaluation(Board board, int depth, int plyFromRoot, double alpha, double beta)
     {
-        if (depth > this.depth) Debug.Log(depth);
-        if (depth < 0) Debug.Log(depth);
-        if (positions[depth].ContainsKey(zobristKey)) return true;
-        return false;
+        Position position = positions[board.state.zobristKey % positionCount]; //i do not know why there is a modulas here icl, using implementation inspired by sebastion lague
+
+        if (position.zobristKey == board.state.zobristKey)
+        {
+            double eval = CorrectRetrievedMateScore(position.eval, plyFromRoot);
+            //only use if more or as good as depth being as current search
+            //or it's a mate, cause searching deeper is guaranteeded for the same result
+            if (position.depth >= depth || Math.Abs(eval) > 99999) 
+            {
+                if (position.evalType == Exact) return eval;
+
+                if (position.evalType == UpperBound && eval <= alpha) //worse than best move we found, and cause its upper bound, it cant be any better!
+                {
+                    return eval;
+                }
+
+                if (position.evalType == LowerBound && eval >= beta) //we have worse possible value, and best move for opponent is lower, so we dont care!
+                {
+                    return eval;
+                }
+            }
+        }
+
+        return -1; //lookup fail
     }
 
-    /// <summary> Add given move data, at given depth. </summary>
-    public void Add(ulong zobristKey, (double eval, MoveNode index, double alphaBeta) value, int depth)
+    public void StoreEvaluation(Board board, byte depth, int plyFromRoot, double eval, byte evalType, Move move)
     {
-        positions[depth].Add(zobristKey, value);
+        Position position = new Position(board.state.zobristKey, move, CorrectMateScoreForStorage(eval, plyFromRoot), evalType, depth);
+        positions[board.state.zobristKey % positionCount] = position;
     }
 
-    /// <summary> Remove given move data, at given depth. </summary>
-    public void Remove(ulong zobristKey, int depth)
+    public Move GetMove(Board board)
     {
-        positions[depth].Remove(zobristKey);
+        return positions[board.state.zobristKey % positionCount].move;
     }
 
-    /// <summary> Get move at given position and depth. </summary>
-    public (double eval, MoveNode index, double alphaBeta) Get(ulong zobristKey, int depth)
+    double CorrectMateScoreForStorage(double eval, int numPlySearched)
     {
-        return positions[depth][zobristKey];
+        if (Math.Abs(eval) >= 99999)
+        {
+            int sign = System.Math.Sign(eval);
+            return (eval * sign + numPlySearched) * sign;
+        }
+        return eval;
     }
-}
 
-/// <summary> Move info about move in search </summary>
-public class MoveNode
-{
-    public MoveNode nextNode;
-
-    public int index;
-    public int depth;
-
-    public MoveNode(int index, int depth, MoveNode nextNode)
+    double CorrectRetrievedMateScore(double eval, int numPlySearched)
     {
-        this.nextNode = nextNode;
-        this.index = index;
-        this.depth = depth;
+        if (Math.Abs(eval) >= 99999)
+        {
+            int sign = System.Math.Sign(eval);
+            return (eval * sign - numPlySearched) * sign;
+        }
+        return eval;
+    }
+
+    public struct Position
+    {
+        public readonly ulong zobristKey;
+        public readonly Move move;
+
+        public readonly byte depth; //how deep the search went from this point
+
+        public readonly double eval;
+        public readonly byte evalType; //type of eval reached
+
+        public Position(ulong zobristKey, Move move, double eval, byte evalType, byte depth)
+        {
+            this.zobristKey = zobristKey;
+            this.move = move;
+
+            this.eval = eval;
+            this.evalType = evalType;
+
+            this.depth = depth;
+        }
     }
 }

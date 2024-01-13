@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Unity.VisualScripting;
 using UnityEditor;
 
 /// <summary> Class representing a state of a chess game. </summary>
@@ -12,7 +11,7 @@ public class Board
     public const string DefaultFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w QKqk - 0 1"; //default starting pos in chess
     public const string KingPawnTestFen = "8/2KP/8/8/8/8/8/kq b - - 1 1";
     public const string WhiteKingPawnTestFen = "KQ/8/8/8/8/8/2kp/8 w - - 0 1";
-    public const string RookTestFen = "RK/8/8/8/k/8/8/8 w - - 0 1";
+    public const string RookTestFen = "RK/8/8/8/4k/8/8/8 w - - 0 1";
 
     public byte[] board = new byte[64]; //actual values of board
 
@@ -55,6 +54,8 @@ public class Board
     public HashSet<ulong> previousPositions = new HashSet<ulong>();
     public HashSet<ulong> doublePreviousPositions = new HashSet<ulong>(); //previous positions that have occured twice
 
+    public string initalFen; //used for pgn among other things
+
     //constructors 
 
     public Board() { }
@@ -85,6 +86,8 @@ public class Board
 
         wPawnAttack = b.wPawnAttack;
         bPawnAttack = b.bPawnAttack;
+
+        initalFen = b.initalFen;
 
         turn = b.turn;
         state = new BoardState(b.state);

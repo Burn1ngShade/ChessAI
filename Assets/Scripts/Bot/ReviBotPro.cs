@@ -1,16 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Net.Http.Headers;
-using Unity.VisualScripting;
 
 //to implement
-//get alpha beta pruning actually workign!!!!
-//better extend algorithim
-// quiescience search
-// reduce depth for irrelevant moves
+//generate capture only boards
+//check mates on  chheky eval ygm cuh
 
+/// <summary> Chess engines primary chess bot, est rating 1500 - 1700 (tested up to 1400, easily beating opp). </summary>
 public static class ReviBotPro
 {
     //settings
@@ -23,7 +19,7 @@ public static class ReviBotPro
     public const int SearchDepthIncreaseCap = 1200; //will rerun with increased search cap if not exceded
     public const int MaxExtensionCount = 16; //max number of times a search will be deepened to look at something
 
-    static TranspositionTablePro transpositions;
+    static TranspositionTable transpositionTable;
 
     //opening books stuff
     public static OpeningBook openingBook;
@@ -36,16 +32,27 @@ public static class ReviBotPro
     static Move bestMove;
 
 
-    /// <summary> Get move with given settings, according to bots search algorithim. </summary>
+    public static void Init()
+    {
+        openingBook = new OpeningBook(System.IO.File.ReadAllText("Assets/Book.txt"));
+        transpositionTable = new TranspositionTable(64); //64 mb
+    }
+
+    /// <summary> Starts a bot search with given param, returns best move found during search. </summary>
     public static Move StartSearch(Board searchBoard, int searchDepth, bool dynamicDepth, int openBookMode) //on ocasion the transpo table still makes errors but there now rare and small enough idrc
     {
+        //apply param
         openingBookMode = openBookMode;
         useDynamicDepth = dynamicDepth;
-
         board = new Board(searchBoard);
 
-        if (board.turn == 0 || diagnostics == null) diagnostics = new SearchDiagnostics();
+        if (board.turn == 0 || diagnostics == null)
+        {
+            diagnostics = new SearchDiagnostics(); //reset debug if new game
+            transpositionTable.Clear();
+        }
 
+        //book moves
         Move bookMove = TryGetBookMove();
         if (!bookMove.IsNullMove)
         {
@@ -55,61 +62,72 @@ public static class ReviBotPro
             return bookMove;
         }
 
-        diagnostics.StartMoveDiagnostics();
+        //non book move
 
-        transpositions = new TranspositionTablePro(searchDepth + (searchDepth % 2 == 0 ? 3 : 2) + MaxExtensionCount);
+        diagnostics.StartMoveDiagnostics();
+        //transpositions = new TranspositionTablePro(searchDepth + (searchDepth % 2 == 0 ? 3 : 2) + MaxExtensionCount);
 
         double eval = Search(searchDepth, 0, double.MinValue, double.MaxValue, 0);
 
-        if (diagnostics.searchElapsedTime < SearchDepthIncreaseCap && useDynamicDepth)
+        //if the time taken to generate a move is deemed short enough, depth is increased as it shouldnt take to long (iterative deepening)
+        //also checks that enabled, and that it's the previous check was not a mate, cause if it's a mate no point checking deeper
+        if (diagnostics.searchElapsedTime < SearchDepthIncreaseCap && useDynamicDepth && Math.Abs(eval) < 99999) 
         {
             UnityEngine.Debug.Log($"[ReviBotPro], Total Search Elapsed Time: {diagnostics.searchElapsedTime}ms, Increasing Search Depth From {searchDepth} To {searchDepth + 1}");
             Move m = StartSearch(board, searchDepth + 1, useDynamicDepth, openingBookMode);
             return m;
         }
 
-        // converts to side to move relative 
+        // update debug
         diagnostics.currentMove.eval = eval;
         diagnostics.currentMove.depth = searchDepth;
         diagnostics.StopMoveDiagnostics();
 
+        // update ui
         GUIHandler.UpdateBotUI(bestMove, eval * (searchBoard.whiteTurn ? 1 : -1), diagnostics.currentMove.movesSearched, searchDepth, diagnostics.currentMove.potentialBranches, diagnostics.currentMove.branchesPrunned, TimeSpan.FromSeconds(diagnostics.currentMove.timeTaken));
 
         return bestMove;
     }
 
-    /// <summary> 4th iteration of alpha beta search algorithim for the bot (non side to move relative). </summary>
+    /// <summary> Main search function for bot. </summary>
     static double Search(int plyRemaining, int plyFroomRoot, double alpha, double beta, int extensions)
     {
-        //reached end of depth or game final state been reached, so just evaluate current position (quite eval)
+        //game is not still being played (won/drawn), so can get value of gamestate from evaluation
         if (board.state.gameState > 0)
         {
-            return Evaluation.RelativeEvaluate(board, searchInitalMove, plyFroomRoot);
-        }
-        
-        if (plyRemaining == 0)
-        {
-            return QuiescenceSearch(alpha, beta, plyFroomRoot);
+            double gameEndEval = Evaluation.RelativeEvaluate(board, searchInitalMove, plyFroomRoot);
+            return gameEndEval;
         }
 
-        if (plyFroomRoot > 0)
+        if (plyFroomRoot > 0) //if not first move
         {
             if (board.doublePreviousPositions.Contains(board.state.zobristKey))
             {
                 return 0; //if position a repeat assumed to be a draw
             }
-
-            if (transpositions.Contains(board.state.zobristKey, plyFroomRoot))
-            {
-                diagnostics.currentMove.potentialBranches++;
-                double eval = transpositions.Get(board.state.zobristKey, plyFroomRoot); //get pos
-
-                diagnostics.currentMove.branchesPrunned++;
-                return eval;
-            }
         }
 
-        List<Move> orderedMoves = MoveOrdering.OrderedMoves(board);
+        double ttEval = transpositionTable.LookupEvaluation(board, plyRemaining, plyFroomRoot, alpha, beta);
+        //transpos table has value
+        if (ttEval != -1)
+        {
+            if (plyFroomRoot == 0)
+            {
+                UnityEngine.Debug.Log(transpositionTable.positions[board.state.zobristKey % transpositionTable.positionCount].eval);
+                bestMove = transpositionTable.GetMove(board);
+            }
+            diagnostics.currentMove.branchesPrunned++;
+            return ttEval;
+        }
+
+        if (plyRemaining == 0) //search over, so switch to QuiesceneSearch
+        {
+            return QuiescenceSearch(alpha, beta, plyFroomRoot);
+        }
+
+        List<Move> orderedMoves = MoveOrdering.OrderedMoves(board); //order moves so most promising moves come first
+        byte evaluationBounds = TranspositionTable.UpperBound;
+        Move bestMoveInPosition = Move.NullMove;
 
         for (int i = 0; i < orderedMoves.Count; i++)
         {
@@ -122,14 +140,16 @@ public static class ReviBotPro
 
             board.MakeMove(move);
 
+            //extend the search depth of promising moves
+
             int extend = 0;
             if (extensions < MaxExtensionCount)
             {
-                if (board.state.isCheck)
+                if (board.state.isCheck) //check so checkmate could be close
                 {
                     extend = 1;
                 }
-                else if (absType == Piece.PawnPiece && (Piece.Rank(move.endPos) == 7 || Piece.Rank(move.endPos) == 0))
+                else if (absType == Piece.PawnPiece && (Piece.Rank(move.endPos) == 6 || Piece.Rank(move.endPos) == 1)) //one off from promotion, want to see if promo possible
                 {
                     extend = 1;
                 }
@@ -137,10 +157,10 @@ public static class ReviBotPro
 
             double eval = 0;
             bool needsFullSearch = true;
-            if (extend == 0 && plyRemaining >= 3 && i >= 3 && !isCapture)
+            if (extend == 0 && plyRemaining >= 3 && i >= 3 && !isCapture) //reduce search if move is unlikey to be any good
             {
-                eval = -Search(plyRemaining - 2, plyFroomRoot + 1, -beta, -alpha, extensions);
-                needsFullSearch = eval > alpha;
+                eval = -Search(plyRemaining - 2, plyFroomRoot + 1, -alpha - 1, -alpha, extensions);
+                needsFullSearch = eval > alpha; //if eval is better than alpha then worth checking
             }
             if (needsFullSearch) eval = -Search(plyRemaining - 1 + extend, plyFroomRoot + 1, -beta, -alpha, extensions + extend);
 
@@ -148,11 +168,15 @@ public static class ReviBotPro
 
             if (eval >= beta)
             {
+                transpositionTable.StoreEvaluation(board, (byte)plyRemaining, plyFroomRoot, beta, TranspositionTable.LowerBound, orderedMoves[i]);
                 return beta;
             }
 
             if (eval > alpha)
             {
+                evaluationBounds = TranspositionTable.Exact;
+                bestMoveInPosition = orderedMoves[i];
+
                 alpha = eval;
 
                 if (plyFroomRoot == 0)
@@ -162,10 +186,11 @@ public static class ReviBotPro
             }
         }
 
-        if (plyFroomRoot > 0) transpositions.Add(board.state.zobristKey, alpha, plyFroomRoot);
+        transpositionTable.StoreEvaluation(board, (byte)plyRemaining, plyFroomRoot, alpha, evaluationBounds, bestMoveInPosition);
         return alpha;
     }
 
+    /// <summary> Extention of standard search, searches until postion is quite (no captures). </summary>
     static double QuiescenceSearch(double alpha, double beta, int plyFromRoot)
     {
         double eval = Evaluation.RelativeEvaluate(board, searchInitalMove, plyFromRoot); //get base eval
@@ -182,6 +207,8 @@ public static class ReviBotPro
         for (int i = 0; i < moves.Count; i++)
         {
             if (board.board[moves[i].endPos] == 0) continue; //we are only checking captures
+
+            diagnostics.currentMove.movesSearched++;
 
             board.MakeMove(moves[i]);
             eval = -QuiescenceSearch(-beta, -alpha, plyFromRoot + 1);
@@ -200,6 +227,7 @@ public static class ReviBotPro
         return alpha;
     }
 
+    /// <summary> Attempt to find current position in opening book, and returns associated position. </summary>
     static Move TryGetBookMove()
     {
         if (openingBookMode == -1 && openingBook.TryGetBookMove(board, out string moveString))

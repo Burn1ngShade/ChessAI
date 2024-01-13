@@ -137,15 +137,15 @@ public static class Evaluation
         {
             if (friendlyPawns[i].pop > 1)
             {
-                eval -= (friendlyPawns[i].pop - 1) * 40; //punishment for pawn doubling
+                eval -= (friendlyPawns[i].pop - 1) * 35; //punishment for pawn doubling
             }
             if (friendlyPawns[i].pop > 0 && (i == 0 ? 0 : friendlyPawns[i - 1].pop) + (i == 7 ? 0 : friendlyPawns[i + 1].pop) == 0)
             {
-                eval -= 40; //punishment for isolated pawns
+                eval -= 35; //punishment for isolated pawns
             }
             if (friendlyPawns[i].pop > 0 && oppPawns[i].pop + (i == 0 ? 0 : oppPawns[i - 1].pop) + (i == 7 ? 0 : oppPawns[i + 1].pop) == 0) //past pawn
             {
-                eval += 70;
+                eval += 60;
             }
         }
 

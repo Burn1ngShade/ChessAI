@@ -44,7 +44,7 @@ public class GameHandler : MonoBehaviour
 
     private void Start()
     {
-        ReviBotPro.openingBook = new OpeningBook(File.ReadAllText("Assets/Book.txt"));
+        ReviBotPro.Init();
         SetUpChessBoard(Board.usedFen);
     }
 

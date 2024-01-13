@@ -90,6 +90,8 @@ public static class FormattingUtillites
 
         board.possibleMoves = MoveGeneration.GenerateMoves(board);
 
+        board.initalFen = fen;
+
         return board;
     }
 
@@ -130,7 +132,7 @@ public static class FormattingUtillites
             if (!BinaryUtilities.ByteContains(board.state.castleRights, 1)) fenPosition += "q";
         }
 
-        if (board.state.enPassantFile == 0) fenPosition += " - ";
+        if (board.state.enPassantFile == 0 || board.previousMoves.Count == 0) fenPosition += " - ";
         else
         {
             fenPosition += $" {BoardCode(board.previousMoves.Peek().endPos + (board.whiteTurn ? 8 : -8))} ";
@@ -145,9 +147,86 @@ public static class FormattingUtillites
     // --- PGN ---
 
     /// <summary> Generates pgn for given board [NOT IMPLEMENTED] </summary>
-    public static string BoardToPgnString(Board finalBoard)
+    public static string BoardToPgnString(Board board)
     {
-        return "PGN Support Not Yet Implemented :(";
+        //first lets generate game metadata
+        string metaData = "[Event \"Revi Bot Chess\"]\n";
+        metaData += "[Site \"https://github.com/Burn1ngShade/ChessAI\"]\n";
+        metaData += $"[Date \"{DateTime.Now.ToString("yyyy.MM.dd")}\"]\n";
+        metaData += "[Round \"-\"]\n";
+        metaData += $"[White \"{(GameHandler.botMode == GameHandler.BotMode.Off || GameHandler.botMode == GameHandler.BotMode.Black ? "Human" : "Bot")}\"]\n";
+        metaData += $"[Black \"{(GameHandler.botMode == GameHandler.BotMode.Off || GameHandler.botMode == GameHandler.BotMode.White ? "Human" : "Bot")}\"]\n";
+        metaData += $"[Result \"{(board.state.gameState == 0 ? "*" : board.state.gameState == 1 ? "1-0" : board.state.gameState == 2 ? "0-1" : "1/2-1/2")}\"]\n";
+        if (board.initalFen != Board.DefaultFen) //if not starting from normal game start must specify start fen
+        {
+            metaData += "[SetUp \"1\"]\n";
+            metaData += $"[FEN \"{board.initalFen}\"]\n";
+        }
+
+        //now lets generate move data
+        string moveData = "\n";
+
+        Board moveCheckBoard = new Board(board.initalFen);
+        List<Move> moves = board.previousMoves.Reverse().ToList();
+        for (int i = 0; i < moves.Count; i++)
+        {
+            Move move = moves[i];
+            int type = Piece.AbsoluteType(moveCheckBoard.board[move.startPos]);
+            int captureType = Piece.AbsoluteType(moveCheckBoard.board[move.endPos]);
+
+            if (moveCheckBoard.turn % 2 == 0) moveData += $"{moveCheckBoard.turn / 2 + 1}. "; //turn counter 1. 2. ...
+
+            if (move.type == 6)
+            { //queen side castle
+                moveData += "O-O-O ";
+                continue;
+            }
+            if (move.type == 7)
+            { //king side castle
+                moveData += "O-O ";
+                continue;
+            }
+
+            if (type == 0)
+            {
+                UnityEngine.Debug.Log(move + "??????");
+            }
+            if (type != 6) moveData += reversedFenPieceLookup[(byte)type]; //piece type e.g knight -> N
+
+            //check for two pieces of same type being able to reach same square (what makes generating slower)
+            for (int j = 0; j < moveCheckBoard.possibleMoves.Count; j++)
+            {
+                Move compareMove = moveCheckBoard.possibleMoves[j];
+
+                if (compareMove.endPos == move.endPos && Piece.AbsoluteType(moveCheckBoard.board[compareMove.startPos]) == type && compareMove.startPos != move.startPos)
+                {
+                    moveData += Piece.File(move.startPos) == Piece.File(move.endPos) ? BoardCode(move.startPos)[1] : BoardCode(move.startPos)[0];
+                    break;
+                }
+            }
+
+            if (captureType != 0 || move.type == 1) moveData += type == 6 ? $"{BoardCode(move.startPos)[0]}x" : "x"; //capture marker
+            moveData += $"{BoardCode(move.endPos)}"; //default eg e4 f3
+
+            //promotions
+            if (move.type == 2) moveData += "=Q";
+            else if (move.type == 3) moveData += "=R";
+            else if (move.type == 4) moveData += "=B";
+            else if (move.type == 5) moveData += "=N";
+
+            moveCheckBoard.MakeMove(move);
+
+            if (moveCheckBoard.state.isCheck)
+            {
+                if (board.state.gameState == 0) moveData += "+";
+                else moveData += "#";
+            }
+            moveData += " ";
+        }
+
+        moveData += moveCheckBoard.state.gameState == 0 ? "*" : moveCheckBoard.state.gameState == 1 ? "1-0" : board.state.gameState == 2 ? "0-1" : "1/2-1/2";
+
+        return metaData + moveData;
     }
 
     // --- BOARD ---
