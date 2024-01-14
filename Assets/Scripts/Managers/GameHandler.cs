@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
+using static ReviBotPro.SearchDiagnostics;
 
 /// <summary> Responsible for handling user and ai interaction with chess game </summary>
 public class GameHandler : MonoBehaviour
@@ -11,8 +11,11 @@ public class GameHandler : MonoBehaviour
 
     public enum BotMode { Off, White, Black, Both }
     public static BotMode botMode;
+
+    public enum IterativeDeepeningMode { Off, Low, Normal, High }
+    public static IterativeDeepeningMode iterativeDeepening = IterativeDeepeningMode.Normal;
+
     public static int botSearchDepth = 6;
-    public static bool useDynamicDepth = true;
     public static int openBookMode = -1;
 
     public enum GameState { Playing, Promotion, Over }
@@ -25,16 +28,15 @@ public class GameHandler : MonoBehaviour
     public readonly List<(KeyCode hotkey, Action action)> hotkeys = new List<(KeyCode hotkey, Action action)>() {
         (KeyCode.R, new Action(() => SetUpChessBoard(Board.usedFen))),
         (KeyCode.U, new Action(() => UndoMove())),
-        (KeyCode.Alpha1, new Action(() => { botMode = (BotMode)0; GUIHandler.UpdateBotUINull(); })),
-        (KeyCode.Alpha2, new Action(() => { botMode = (BotMode)1; GUIHandler.UpdateBotUINull(); })),
-        (KeyCode.Alpha3, new Action(() => { botMode = (BotMode)2; GUIHandler.UpdateBotUINull(); })),
-        (KeyCode.Alpha4, new Action(() => { botMode = (BotMode)3; GUIHandler.UpdateBotUINull(); })),
+        (KeyCode.Alpha1, new Action(() => { botMode = (BotMode)0; GUIHandler.UpdateBotUI(Move.NullMove, new MoveDiagnostics()); })),
+        (KeyCode.Alpha2, new Action(() => { botMode = (BotMode)1; GUIHandler.UpdateBotUI(Move.NullMove, new MoveDiagnostics()); })),
+        (KeyCode.Alpha3, new Action(() => { botMode = (BotMode)2; GUIHandler.UpdateBotUI(Move.NullMove, new MoveDiagnostics()); })),
+        (KeyCode.Alpha4, new Action(() => { botMode = (BotMode)3; GUIHandler.UpdateBotUI(Move.NullMove, new MoveDiagnostics()); })),
         (KeyCode.F, new Action(() => { GUIHandler.showAttackBitboard = !GUIHandler.showAttackBitboard; GUIHandler.UpdateUI(); if (!GUIHandler.showAttackBitboard)   GUIHandler.UpdateBoardHighlights(1, GUIHandler.ClearColourHighlights());} )),
         (KeyCode.G, new Action(() => { GUIHandler.showPinBitboard = !GUIHandler.showPinBitboard; GUIHandler.UpdateUI(); if (!GUIHandler.showPinBitboard)   GUIHandler.UpdateBoardHighlights(2, GUIHandler.ClearColourHighlights());} )),
         (KeyCode.H, new Action(() => { GUIHandler.showPossibleAttackBitboard = !GUIHandler.showPossibleAttackBitboard; GUIHandler.UpdateUI(); if (!GUIHandler.showPossibleAttackBitboard) GUIHandler.UpdateBoardHighlights(3, GUIHandler.ClearColourHighlights());} )),
-        (KeyCode.J, new Action(() => {botSearchDepth = Math.Clamp(botSearchDepth - 1, 2, 20); GUIHandler.UpdateBotUINull();})),
-        (KeyCode.K, new Action(() => {botSearchDepth = Math.Clamp(botSearchDepth + 1, 2, 20); GUIHandler.UpdateBotUINull();})),
-        (KeyCode.L, new Action(() => {useDynamicDepth = !useDynamicDepth; GUIHandler.UpdateBotUINull();})),
+        (KeyCode.J, new Action(() => {botSearchDepth = Math.Clamp(botSearchDepth - 1, 2, 20); GUIHandler.UpdateBotUI(Move.NullMove, new MoveDiagnostics());})),
+        (KeyCode.K, new Action(() => {botSearchDepth = Math.Clamp(botSearchDepth + 1, 2, 20); GUIHandler.UpdateBotUI(Move.NullMove, new MoveDiagnostics());})),
     };
 
     void Awake()
@@ -100,8 +102,16 @@ public class GameHandler : MonoBehaviour
     /// <summary> Handles bot gameplay. </summary>
     void HandleBotGameplay()
     {
-        Move m = ReviBotPro.StartSearch(board, botSearchDepth, useDynamicDepth, openBookMode);
+        if (!GUIHandler.popupUI[4].gameObject.activeSelf && (openBookMode == -2 || !ReviBotPro.openingBook.TryGetBookMove(board, out string s)))
+        {
+            GUIHandler.popupUI[4].gameObject.SetActive(true);
+            return; //give frame for it to appear on screen
+        }
+
+        Move m = ReviBotPro.StartSearch(board, iterativeDeepening, botSearchDepth, openBookMode);
         board.MakeMove(m);
+
+        GUIHandler.popupUI[4].gameObject.SetActive(false);
 
         GUIHandler.UpdateBoardUI(new List<Move>(), GUIHandler.GenerateLastMoveHighlight());
     }
@@ -177,7 +187,7 @@ public class GameHandler : MonoBehaviour
         board = new Board(fenPosition);
         gameState = GameState.Playing;
 
-        GUIHandler.UpdateBotUINull();
+        GUIHandler.ResetBotUI();
         GUIHandler.UpdateBoardUI(new List<Move>(), GUIHandler.ClearColourHighlights());
     }
 
@@ -202,9 +212,9 @@ public class GameHandler : MonoBehaviour
     }
 
     /// <summary> Toggles dynamic bot depth from popup menu. </summary>
-    public void ToggleDynamicBotDepth()
+    public void AdjustDynamicDepth(int magnitude)
     {
-        useDynamicDepth = !useDynamicDepth;
+        iterativeDeepening = (IterativeDeepeningMode)Math.Clamp((int)iterativeDeepening + magnitude, 0, 3);
         GUIHandler.UpdateBotSettingsPopup(true);
     }
 
@@ -213,23 +223,24 @@ public class GameHandler : MonoBehaviour
     public void FastBotSettings()
     {
         botSearchDepth = 4;
-        useDynamicDepth = false;
+        iterativeDeepening = IterativeDeepeningMode.Low;
 
-        GUIHandler.UpdateBotUINull();
+        GUIHandler.UpdateBotUI(Move.NullMove, new MoveDiagnostics());
     }
 
     /// <summary> Updates bot settings to smart bot preset. </summary>
     public void SmartBotSettings()
     {
         botSearchDepth = 6;
-        useDynamicDepth = true;
+        iterativeDeepening = IterativeDeepeningMode.Normal;
 
-        GUIHandler.UpdateBotUINull();
+        GUIHandler.UpdateBotUI(Move.NullMove, new MoveDiagnostics());
     }
 
     /// <summary> Resets game board. </summary>
     public void ResetGame()
     {
+        GUIHandler.ResetBotUI();
         SetUpChessBoard(Board.usedFen);
     }
 

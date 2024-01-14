@@ -5,6 +5,7 @@ using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using static ReviBotPro.SearchDiagnostics;
 
 /// <summary> Class responsible for visualising chess engine </summary>
 public class GUIHandler : MonoBehaviour
@@ -98,48 +99,56 @@ public class GUIHandler : MonoBehaviour
         UpdatePieceUI();
     }
 
-    /// <summary> Updates UI elements about BOT. </summary>
-    public static void UpdateBotUI(Move move, double eval, int movesSearched, int searchDepth, int transpositions, int transpositionsUsed, TimeSpan timeTaken)
+    /// <summary> Updates UI of bot. </summary>
+    public static void UpdateBotUI(Move move, MoveDiagnostics diagnostics)
     {
-        evalUI[4].GetChild(2).GetComponent<Image>().fillAmount = (Mathf.Clamp((float)eval, -1200, 1200) + 1200) / 2400;
-        evalUI[4].GetChild(3).GetComponent<TMP_Text>().text = $"{(eval >= 0 ? "+" : "")}{((double)eval / 100).ToString("0.00")}";
+        UpdateBotSettingsUI();
 
-        evalUI[1].GetChild(0).GetComponent<TMP_Text>().text = $"Bot Mode: {GameHandler.botMode}";
-        evalUI[1].GetChild(1).GetComponent<TMP_Text>().text = $"Opening Book Mode: {(GameHandler.openBookMode == -2 ? "Off" : GameHandler.openBookMode == -1 ? "Best" : $"{(double)GameHandler.openBookMode / 4}")}";
-        evalUI[1].GetChild(2).GetComponent<TMP_Text>().text = $"Dynamic Depth: {GameHandler.useDynamicDepth}";
-        evalUI[1].GetChild(3).GetComponent<TMP_Text>().text = $"Inital Depth: {GameHandler.botSearchDepth}";
+        if (!move.IsNullMove)
+        {
+            double eval = diagnostics.eval * (GameHandler.board.whiteTurn ? 1 : -1);
+            evalUI[4].GetChild(2).GetComponent<Image>().fillAmount = (Mathf.Clamp((float)eval, -1200, 1200) + 1200) / 2400;
+            if (Math.Abs(eval) < 99999) evalUI[4].GetChild(3).GetComponent<TMP_Text>().text = $"{(eval > 0 ? "+" : "")}{((double)eval / 100).ToString("0.00")}";
+            else evalUI[4].GetChild(3).GetComponent<TMP_Text>().text = "Forced Checkmate";
 
-        evalUI[2].GetChild(0).GetComponent<TMP_Text>().text = $"Used Depth: {searchDepth}";
-        evalUI[2].GetChild(1).GetComponent<TMP_Text>().text = $"Time Taken: {Math.Round(timeTaken.TotalSeconds, 2)}s";
-        evalUI[2].GetChild(2).GetComponent<TMP_Text>().text = $"Time Per Move: {Math.Round(timeTaken.TotalMilliseconds / (movesSearched + 1), 3)}ms";
+            evalUI[2].GetChild(0).GetComponent<TMP_Text>().text = $"Type: {(diagnostics.moveType == 0 ? "Full Search" : diagnostics.moveType == 1 ? "Book Move" : "Transposition")}";
+            evalUI[2].GetChild(1).GetComponent<TMP_Text>().text = $"Used Depth: {(diagnostics.moveType != 0 ? "None" : diagnostics.depth)}";
+            evalUI[2].GetChild(2).GetComponent<TMP_Text>().text = $"Time Taken: {Math.Round(diagnostics.timeTaken, 2)}s";
+            evalUI[2].GetChild(3).GetComponent<TMP_Text>().text = $"Time Per Move: {(diagnostics.movesSearched == 0 ? 0 : Math.Round(diagnostics.timeTaken * 1000 / Math.Max(diagnostics.movesSearched, 1), 3))}ms";
 
-        evalUI[3].GetChild(0).GetComponent<TMP_Text>().text = $"Moves Searched: {movesSearched}";
-        evalUI[3].GetChild(1).GetComponent<TMP_Text>().text = $"Best Move: {FormattingUtillites.BoardCode(move.startPos)} -> {FormattingUtillites.BoardCode(move.endPos)}";
-        evalUI[3].GetChild(2).GetComponent<TMP_Text>().text = $"Best Move Eval: {Math.Round(eval, 2)}";
-        evalUI[3].GetChild(3).GetComponent<TMP_Text>().text = $"Transpos Found: {transpositions}";
-        evalUI[3].GetChild(4).GetComponent<TMP_Text>().text = $"Transpos Used: {transpositionsUsed}";
+            evalUI[3].GetChild(0).GetComponent<TMP_Text>().text = $"Moves Searched: {diagnostics.movesSearched}";
+            evalUI[3].GetChild(1).GetComponent<TMP_Text>().text = $"Best Move: {FormattingUtillites.BoardCode(move.startPos)} -> {FormattingUtillites.BoardCode(move.endPos)}";
+            evalUI[3].GetChild(2).GetComponent<TMP_Text>().text = $"Best Move Eval: {(diagnostics.moveType != 0 ? "None" :  Math.Round(eval, 2))}";
+            evalUI[3].GetChild(3).GetComponent<TMP_Text>().text = $"Transpositions: {diagnostics.transpositions}";
+        }
     }
 
-    /// <summary> Updates UI elements about BOT To Unknown Values. </summary>
-    public static void UpdateBotUINull()
+    /// <summary> Reset bot UI to starting state. </summary>
+    public static void ResetBotUI()
     {
+        UpdateBotSettingsUI();
+
         evalUI[4].GetChild(2).GetComponent<Image>().fillAmount = 0.5f;
-        evalUI[4].GetChild(3).GetComponent<TMP_Text>().text = "???";
+        evalUI[4].GetChild(3).GetComponent<TMP_Text>().text = "0.00";
 
-        evalUI[1].GetChild(0).GetComponent<TMP_Text>().text = $"Bot Mode: {GameHandler.botMode}";
-        evalUI[1].GetChild(1).GetComponent<TMP_Text>().text = $"Opening Book Mode: {(GameHandler.openBookMode == -2 ? "Off" : GameHandler.openBookMode == -1 ? "Best" : $"{(double)GameHandler.openBookMode / 4}")}";
-        evalUI[1].GetChild(2).GetComponent<TMP_Text>().text = $"Dynamic Depth: {GameHandler.useDynamicDepth}";
-        evalUI[1].GetChild(3).GetComponent<TMP_Text>().text = $"Inital Depth: {GameHandler.botSearchDepth}";
-
-        evalUI[2].GetChild(0).GetComponent<TMP_Text>().text = $"Used Depth: {GameHandler.botSearchDepth}";
-        evalUI[2].GetChild(1).GetComponent<TMP_Text>().text = $"Time Taken: 0s";
-        evalUI[2].GetChild(2).GetComponent<TMP_Text>().text = $"Time Per Move: 0ms";
+        evalUI[2].GetChild(0).GetComponent<TMP_Text>().text = $"Type: None";
+        evalUI[2].GetChild(1).GetComponent<TMP_Text>().text = $"Used Depth: None";
+        evalUI[2].GetChild(2).GetComponent<TMP_Text>().text = $"Time Taken: 0s";
+        evalUI[2].GetChild(3).GetComponent<TMP_Text>().text = $"Time Per Move: 0ms";
 
         evalUI[3].GetChild(0).GetComponent<TMP_Text>().text = $"Moves Searched: 0";
         evalUI[3].GetChild(1).GetComponent<TMP_Text>().text = $"Best Move: None";
         evalUI[3].GetChild(2).GetComponent<TMP_Text>().text = $"Best Move Eval: None";
-        evalUI[3].GetChild(3).GetComponent<TMP_Text>().text = $"Transpos Found: 0";
-        evalUI[3].GetChild(4).GetComponent<TMP_Text>().text = $"Transpos Used: 0";
+        evalUI[3].GetChild(3).GetComponent<TMP_Text>().text = $"Transpositions: 0";
+    }
+
+    /// <summary> Updates UI of bot settings. </summary>
+    public static void UpdateBotSettingsUI()
+    {
+        evalUI[1].GetChild(0).GetComponent<TMP_Text>().text = $"Bot Mode: {GameHandler.botMode}";
+        evalUI[1].GetChild(1).GetComponent<TMP_Text>().text = $"Opening Book Mode: {(GameHandler.openBookMode == -2 ? "Off" : GameHandler.openBookMode == -1 ? "Best" : $"{(double)GameHandler.openBookMode / 4}")}";
+        evalUI[1].GetChild(2).GetComponent<TMP_Text>().text = $"Iterative Deepening: {GameHandler.iterativeDeepening}";
+        evalUI[1].GetChild(3).GetComponent<TMP_Text>().text = $"Inital Depth: {GameHandler.botSearchDepth}";
     }
 
     /// <summary> Updates piece UI elements. </summary>
@@ -311,7 +320,7 @@ public class GUIHandler : MonoBehaviour
         Instance.StartCoroutine(IUpdateBotSettingsPopup(enabled));
     }
 
-        /// <summary> Updates bot popup ui (IEnumator gives time for popup to go). </summary>
+    /// <summary> Updates bot popup ui (IEnumator gives time for popup to go). </summary>
     static IEnumerator IUpdateBotSettingsPopup(bool enabled)
     {
         bool oldActive = popupUI[2].gameObject.activeSelf;
@@ -321,10 +330,10 @@ public class GUIHandler : MonoBehaviour
 
         popupUI[2].GetChild(5).GetChild(1).GetComponent<TMP_Text>().text = $"{(GameHandler.openBookMode == -2 ? "Off" : GameHandler.openBookMode == -1 ? "Best" : $"{(double)GameHandler.openBookMode / 4}")}";
         popupUI[2].GetChild(4).GetChild(1).GetComponent<TMP_Text>().text = $"{GameHandler.botMode}";
-        popupUI[2].GetChild(3).GetChild(1).GetComponent<TMP_Text>().text = $"{GameHandler.useDynamicDepth}";
+        popupUI[2].GetChild(3).GetChild(1).GetComponent<TMP_Text>().text = $"{GameHandler.iterativeDeepening}";
         popupUI[2].GetChild(2).GetChild(1).GetComponent<TMP_Text>().text = $"{GameHandler.botSearchDepth}";
 
-        UpdateBotUINull();
+        UpdateBotUI(Move.NullMove, new MoveDiagnostics());
 
         yield return null;
 

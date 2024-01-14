@@ -2,28 +2,24 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-//to implement
+// --- TO IMPLEMENT ---
 //generate capture only boards
-//check mates on  chheky eval ygm cuh
+//smarter iterative deepening
+//pgn load support
 
-/// <summary> Chess engines primary chess bot, est rating 1500 - 1700 (tested up to 1400, easily beating opp). </summary>
+/// <summary> Chess engines primary chess bot, est rating 1600 - 1800 assuming use of smart preset (tested up to 1500, easily beating opp). </summary>
 public static class ReviBotPro
 {
-    //settings
-    public static bool useDynamicDepth = true;
-    public static int searchDepth = 4; //this number is one lower than the actual depth (4 is really searching 5 moves)
-    public static int openingBookMode = -1; //-2 off -1 on 0 1 2 3 4 are rng
-    //search details
+    //iterative deeping
+    public static readonly int[] iterativeThresholds = new int[3] {250, 1000, 2500};
 
-    public const int TranspositionChangeCap = 100;
-    public const int SearchDepthIncreaseCap = 1200; //will rerun with increased search cap if not exceded
+    //settings
     public const int MaxExtensionCount = 16; //max number of times a search will be deepened to look at something
 
-    static TranspositionTable transpositionTable;
-
-    //opening books stuff
+    //search stuff
     public static OpeningBook openingBook;
     static SearchDiagnostics diagnostics;
+    static TranspositionTable transpositionTable;
 
     //references
     static Board board;
@@ -36,14 +32,13 @@ public static class ReviBotPro
     {
         openingBook = new OpeningBook(System.IO.File.ReadAllText("Assets/Book.txt"));
         transpositionTable = new TranspositionTable(64); //64 mb
+        GUIHandler.ResetBotUI();
     }
 
     /// <summary> Starts a bot search with given param, returns best move found during search. </summary>
-    public static Move StartSearch(Board searchBoard, int searchDepth, bool dynamicDepth, int openBookMode) //on ocasion the transpo table still makes errors but there now rare and small enough idrc
+    public static Move StartSearch(Board searchBoard, GameHandler.IterativeDeepeningMode iterativeDeepening, int searchDepth, int openBookMode, int rootSearch = 0) //on ocasion the transpo table still makes errors but there now rare and small enough idrc
     {
         //apply param
-        openingBookMode = openBookMode;
-        useDynamicDepth = dynamicDepth;
         board = new Board(searchBoard);
 
         if (board.turn == 0 || diagnostics == null)
@@ -53,10 +48,11 @@ public static class ReviBotPro
         }
 
         //book moves
-        Move bookMove = TryGetBookMove();
+        Move bookMove = TryGetBookMove(openBookMode);
         if (!bookMove.IsNullMove)
         {
-            diagnostics.currentMove = new SearchDiagnostics.MoveDiagnostics(0, 0, 0, true, 0);
+            bestMove = bookMove;
+            diagnostics.currentMove = new SearchDiagnostics.MoveDiagnostics(0, 0, 1, 0);
             diagnostics.moveDiagnostics.Add(diagnostics.currentMove);
             diagnostics.OutputMoveDiagnostics();
             return bookMove;
@@ -65,28 +61,38 @@ public static class ReviBotPro
         //non book move
 
         diagnostics.StartMoveDiagnostics();
-        //transpositions = new TranspositionTablePro(searchDepth + (searchDepth % 2 == 0 ? 3 : 2) + MaxExtensionCount);
 
-        double eval = Search(searchDepth, 0, double.MinValue, double.MaxValue, 0);
+        (double eval, int finalDepth) searchResults = IterativeDeepening(searchDepth, iterativeDeepening);
 
-        //if the time taken to generate a move is deemed short enough, depth is increased as it shouldnt take to long (iterative deepening)
-        //also checks that enabled, and that it's the previous check was not a mate, cause if it's a mate no point checking deeper
-        if (diagnostics.searchElapsedTime < SearchDepthIncreaseCap && useDynamicDepth && Math.Abs(eval) < 99999) 
-        {
-            UnityEngine.Debug.Log($"[ReviBotPro], Total Search Elapsed Time: {diagnostics.searchElapsedTime}ms, Increasing Search Depth From {searchDepth} To {searchDepth + 1}");
-            Move m = StartSearch(board, searchDepth + 1, useDynamicDepth, openingBookMode);
-            return m;
-        }
-
-        // update debug
-        diagnostics.currentMove.eval = eval;
-        diagnostics.currentMove.depth = searchDepth;
+        diagnostics.currentMove.eval = searchResults.eval;
+        diagnostics.currentMove.depth = searchResults.finalDepth;
         diagnostics.StopMoveDiagnostics();
 
-        // update ui
-        GUIHandler.UpdateBotUI(bestMove, eval * (searchBoard.whiteTurn ? 1 : -1), diagnostics.currentMove.movesSearched, searchDepth, diagnostics.currentMove.potentialBranches, diagnostics.currentMove.branchesPrunned, TimeSpan.FromSeconds(diagnostics.currentMove.timeTaken));
-
         return bestMove;
+    }
+
+    static (double evaluation, int finalDepth) IterativeDeepening(int intialSearchDepth, GameHandler.IterativeDeepeningMode iterativeDeepening)
+    {
+        int currentSearchDepth = intialSearchDepth;
+        double eval = Search(currentSearchDepth, 0, double.MinValue, double.MaxValue, 0);
+
+        if (iterativeDeepening == GameHandler.IterativeDeepeningMode.Off) return (eval, intialSearchDepth);
+
+        while (true)
+        {
+            if (diagnostics.searchElapsedTime < iterativeThresholds[(int)iterativeDeepening - 1])
+            {
+                currentSearchDepth++;
+                UnityEngine.Debug.Log($"[ReviBotPro], Total Search Elapsed Time: {diagnostics.searchElapsedTime}ms, Increasing Search Depth From {currentSearchDepth - 1} To {currentSearchDepth}");
+                Search(currentSearchDepth, 0, double.MinValue, double.MaxValue, 0);
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        return (eval, currentSearchDepth);
     }
 
     /// <summary> Main search function for bot. </summary>
@@ -113,10 +119,9 @@ public static class ReviBotPro
         {
             if (plyFroomRoot == 0)
             {
-                UnityEngine.Debug.Log(transpositionTable.positions[board.state.zobristKey % transpositionTable.positionCount].eval);
                 bestMove = transpositionTable.GetMove(board);
             }
-            diagnostics.currentMove.branchesPrunned++;
+            diagnostics.currentMove.transpositions++;
             return ttEval;
         }
 
@@ -228,15 +233,15 @@ public static class ReviBotPro
     }
 
     /// <summary> Attempt to find current position in opening book, and returns associated position. </summary>
-    static Move TryGetBookMove()
+    public static Move TryGetBookMove(int openBookMode)
     {
-        if (openingBookMode == -1 && openingBook.TryGetBookMove(board, out string moveString))
+        if (openBookMode == -1 && openingBook.TryGetBookMove(board, out string moveString))
         {
             UnityEngine.Debug.Log($"Book Move Found: {moveString}");
             Move m = board.GetMove(moveString);
             return m;
         }
-        else if (openingBookMode >= 0 && openingBook.TryGetBookMoveWeighted(board, out string weightMoveString, (double)openingBookMode / 4))
+        else if (openBookMode >= 0 && openingBook.TryGetBookMoveWeighted(board, out string weightMoveString, (double)openBookMode / 4))
         {
             UnityEngine.Debug.Log($"Book Move Found: {weightMoveString}");
             Move m = board.GetMove(weightMoveString);
@@ -271,16 +276,20 @@ public static class ReviBotPro
             currentMove.timeTaken = searchWatch.Elapsed.TotalSeconds;
             searchWatch.Reset();
 
+            if (currentMove.movesSearched == 0) currentMove.moveType = 2;
             totalMovesSearched += currentMove.movesSearched;
             totalTimeTaken += currentMove.timeTaken;
             moveDiagnostics.Add(currentMove);
+
 
             OutputMoveDiagnostics();
         }
 
         public void OutputMoveDiagnostics()
         {
-            if (currentMove.bookMove)
+            GUIHandler.UpdateBotUI(bestMove, currentMove);
+
+            if (currentMove.moveType == 1)
             {
                 UnityEngine.Debug.Log("[ReviBotPro] Book Move");
                 return;
@@ -288,7 +297,7 @@ public static class ReviBotPro
 
             string output = $"[ReviBotPro] Total Moves Searched: {totalMovesSearched}, Total Time Taken: {Math.Round(totalTimeTaken, 2)}s\n";
             output += $"Move Eval: {currentMove.eval}, Move Depth: {currentMove.depth}, Moves Searched {currentMove.movesSearched}, Time Taken: {Math.Round(currentMove.timeTaken, 2)}s\n";
-            output += $"Potential Transpositions: {currentMove.potentialBranches}, Transpositions Prunned: {currentMove.branchesPrunned}";
+            output += $"Transpositions: {currentMove.transpositions}";
             UnityEngine.Debug.Log(output);
         }
 
@@ -302,23 +311,21 @@ public static class ReviBotPro
         public class MoveDiagnostics
         {
             public int movesSearched = 0;
-            public int branchesPrunned = 0;
-            public int potentialBranches = 0;
+            public int transpositions = 0;
 
             public double eval;
             public int depth;
 
-            public bool bookMove = false;
+            public int moveType = 0;
             public double timeTaken = 0;
 
-            public MoveDiagnostics() : this(0, 0, 0, false, 0) { }
+            public MoveDiagnostics() : this(0, 0, 0, 0) { }
 
-            public MoveDiagnostics(int movesSearched, int branchesPrunned, int potentialBranches, bool bookMove, double timeTaken)
+            public MoveDiagnostics(int movesSearched, int transpositions, int moveType, double timeTaken)
             {
                 this.movesSearched = movesSearched;
-                this.branchesPrunned = branchesPrunned;
-                this.potentialBranches = potentialBranches;
-                this.bookMove = bookMove;
+                this.transpositions = transpositions;
+                this.moveType = moveType;
                 this.timeTaken = timeTaken;
             }
         }
