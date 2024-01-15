@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using UnityEditor;
+using UnityEngine.UIElements;
 
 /// <summary> Class representing a state of a chess game. </summary>
 public class Board

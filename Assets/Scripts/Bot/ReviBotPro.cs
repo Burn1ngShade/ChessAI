@@ -6,12 +6,13 @@ using System.Diagnostics;
 //generate capture only boards
 //smarter iterative deepening
 //pgn load support
+//more king saftey checks //punish pawns being pushed open files on the king
 
 /// <summary> Chess engines primary chess bot, est rating 1600 - 1800 assuming use of smart preset (tested up to 1500, easily beating opp). </summary>
 public static class ReviBotPro
 {
     //iterative deeping
-    public static readonly int[] iterativeThresholds = new int[3] {250, 1000, 2500};
+    public static readonly int[] iterativeThresholds = new int[3] { 250, 1000, 2500 };
 
     //settings
     public const int MaxExtensionCount = 16; //max number of times a search will be deepened to look at something
@@ -80,7 +81,7 @@ public static class ReviBotPro
 
         while (true)
         {
-            if (diagnostics.searchElapsedTime < iterativeThresholds[(int)iterativeDeepening - 1])
+            if (diagnostics.searchElapsedTime < iterativeThresholds[(int)iterativeDeepening - 1] && Math.Abs(eval) < 99999)
             {
                 currentSearchDepth++;
                 UnityEngine.Debug.Log($"[ReviBotPro], Total Search Elapsed Time: {diagnostics.searchElapsedTime}ms, Increasing Search Depth From {currentSearchDepth - 1} To {currentSearchDepth}");

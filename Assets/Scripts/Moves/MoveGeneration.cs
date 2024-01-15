@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 
 /// <summary> Class responsbile for chess move generation . </summary>
 public static class MoveGeneration
@@ -371,7 +373,7 @@ public static class MoveGeneration
             if (b.previousMoves.Count > 0)
             {
                 Move m = b.previousMoves.Peek();
-                if (b.board[newIndex] == 0 && Piece.AbsoluteType(m.piece) == 6 && m.startPos == newIndex + (8 * isWhite) && m.endPos == newIndex - (8 * isWhite))
+                if (b.state.enPassantFile - 1 == Piece.File(newIndex) && (Piece.Rank(newIndex) == (isWhite == 1 ? 5 : 2)))
                 {
                     AddMove(b, ref moves, new Move(index, (byte)newIndex, 1));
                 }
