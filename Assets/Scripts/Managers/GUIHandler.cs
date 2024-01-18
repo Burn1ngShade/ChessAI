@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using JetBrains.Annotations;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -23,7 +24,9 @@ public class GUIHandler : MonoBehaviour
 
     static SpriteRenderer[] boardHighlights = new SpriteRenderer[4];
 
-    public Sprite[] pieceSprites = new Sprite[12];
+    public Sprite[] pieceSprites = new Sprite[24];
+    public int spriteMode = 1;
+
     public GameObject[] indicators;
 
     public static int legalMoves = 1;
@@ -107,9 +110,9 @@ public class GUIHandler : MonoBehaviour
         if (!move.IsNullMove)
         {
             double eval = diagnostics.eval * (GameHandler.board.whiteTurn ? 1 : -1);
-            evalUI[4].GetChild(2).GetComponent<Image>().fillAmount = (Mathf.Clamp((float)eval, -1200, 1200) + 1200) / 2400;
-            if (Math.Abs(eval) < 99999) evalUI[4].GetChild(3).GetComponent<TMP_Text>().text = $"{(eval > 0 ? "+" : "")}{((double)eval / 100).ToString("0.00")}";
-            else evalUI[4].GetChild(3).GetComponent<TMP_Text>().text = "Forced Checkmate";
+            evalUI[4].GetChild(1).GetComponent<Image>().fillAmount = (Mathf.Clamp((float)eval, -1200, 1200) + 1200) / 2400;
+            if (Math.Abs(eval) < 99999) evalUI[4].GetChild(2).GetComponent<TMP_Text>().text = $"{(eval > 0 ? "+" : "")}{((double)eval / 100).ToString("0.00")}";
+            else evalUI[4].GetChild(2).GetComponent<TMP_Text>().text = "Forced Checkmate";
 
             evalUI[2].GetChild(0).GetComponent<TMP_Text>().text = $"Type: {(diagnostics.moveType == 0 ? "Full Search" : diagnostics.moveType == 1 ? "Book Move" : "Transposition")}";
             evalUI[2].GetChild(1).GetComponent<TMP_Text>().text = $"Used Depth: {(diagnostics.moveType != 0 ? "None" : diagnostics.depth)}";
@@ -118,7 +121,7 @@ public class GUIHandler : MonoBehaviour
 
             evalUI[3].GetChild(0).GetComponent<TMP_Text>().text = $"Moves Searched: {diagnostics.movesSearched}";
             evalUI[3].GetChild(1).GetComponent<TMP_Text>().text = $"Best Move: {FormattingUtillites.BoardCode(move.startPos)} -> {FormattingUtillites.BoardCode(move.endPos)}";
-            evalUI[3].GetChild(2).GetComponent<TMP_Text>().text = $"Best Move Eval: {(diagnostics.moveType != 0 ? "None" :  Math.Round(eval, 2))}";
+            evalUI[3].GetChild(2).GetComponent<TMP_Text>().text = $"Best Move Eval: {(diagnostics.moveType != 0 ? "None" : Math.Round(eval, 2))}";
             evalUI[3].GetChild(3).GetComponent<TMP_Text>().text = $"Transpositions: {diagnostics.transpositions}";
         }
     }
@@ -128,8 +131,8 @@ public class GUIHandler : MonoBehaviour
     {
         UpdateBotSettingsUI();
 
-        evalUI[4].GetChild(2).GetComponent<Image>().fillAmount = 0.5f;
-        evalUI[4].GetChild(3).GetComponent<TMP_Text>().text = "0.00";
+        evalUI[4].GetChild(1).GetComponent<Image>().fillAmount = 0.5f;
+        evalUI[4].GetChild(2).GetComponent<TMP_Text>().text = "0.00";
 
         evalUI[2].GetChild(0).GetComponent<TMP_Text>().text = $"Type: None";
         evalUI[2].GetChild(1).GetComponent<TMP_Text>().text = $"Used Depth: None";
@@ -164,11 +167,11 @@ public class GUIHandler : MonoBehaviour
             if (((GameHandler.board.wPieceBitboard & (1UL << i)) != 0) || ((GameHandler.board.bPieceBitboard & (1UL << i)) != 0))
             {
                 GameObject g = new GameObject($"Piece {i}");
-                g.AddComponent<SpriteRenderer>().sprite = Instance.pieceSprites[GameHandler.board.board[i] - 1];
+                g.AddComponent<SpriteRenderer>().sprite = Instance.pieceSprites[GameHandler.board.board[i] - 1 + (Instance.spriteMode * 12)];
                 g.GetComponent<SpriteRenderer>().sortingOrder = 99;
                 g.transform.SetParent(pieceObjHolder);
                 g.transform.position = FormattingUtillites.GetWorldPos((byte)i);
-                g.transform.localScale = new Vector3(0.8f, 0.8f, 1);
+                g.transform.localScale = new Vector3(0.78f, 0.78f, 1);
             }
 
         }
@@ -280,7 +283,7 @@ public class GUIHandler : MonoBehaviour
         {
             for (int i = 0; i < 4; i++)
             {
-                popupUI[0].GetChild(2).GetChild(i).GetChild(1).GetComponent<Image>().sprite = Instance.pieceSprites[i + (GameHandler.board.whiteTurn ? 1 : 7)];
+                popupUI[0].GetChild(2).GetChild(i).GetChild(1).GetComponent<Image>().sprite = Instance.pieceSprites[i + (GameHandler.board.whiteTurn ? 1 : 7) + (Instance.spriteMode * 12)];
             }
         }
     }
@@ -318,6 +321,13 @@ public class GUIHandler : MonoBehaviour
     public static void UpdateBotSettingsPopup(bool enabled)
     {
         Instance.StartCoroutine(IUpdateBotSettingsPopup(enabled));
+    }
+
+    /// <summary> Updates top header and text, with given data </summary>
+    public static void UpdateBoardHeader(string header, string text)
+    {
+        infoUI[4].GetComponent<TMP_Text>().text = header;
+        infoUI[5].GetComponent<TMP_Text>().text = text;
     }
 
     /// <summary> Updates bot popup ui (IEnumator gives time for popup to go). </summary>

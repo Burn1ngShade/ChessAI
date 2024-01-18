@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Scripting.APIUpdating;
 
 /// <summary> Useful functions for converting to and from common notations. </summary>
 public static class FormattingUtillites
@@ -178,41 +179,37 @@ public static class FormattingUtillites
 
             if (move.type == 6)
             { //queen side castle
-                moveData += "O-O-O ";
-                continue;
+                moveData += "O-O-O";
             }
-            if (move.type == 7)
+            else if (move.type == 7)
             { //king side castle
-                moveData += "O-O ";
-                continue;
+                moveData += "O-O";
             }
-
-            if (type == 0)
+            else
             {
-                UnityEngine.Debug.Log(move + "??????");
-            }
-            if (type != 6) moveData += reversedFenPieceLookup[(byte)type]; //piece type e.g knight -> N
+                if (type != 6) moveData += reversedFenPieceLookup[(byte)type]; //piece type e.g knight -> N
 
-            //check for two pieces of same type being able to reach same square (what makes generating slower)
-            for (int j = 0; j < moveCheckBoard.possibleMoves.Count; j++)
-            {
-                Move compareMove = moveCheckBoard.possibleMoves[j];
-
-                if (compareMove.endPos == move.endPos && Piece.AbsoluteType(moveCheckBoard.board[compareMove.startPos]) == type && compareMove.startPos != move.startPos)
+                //check for two pieces of same type being able to reach same square (what makes generating slower)
+                for (int j = 0; j < moveCheckBoard.possibleMoves.Count; j++)
                 {
-                    moveData += Piece.File(move.startPos) == Piece.File(move.endPos) ? BoardCode(move.startPos)[1] : BoardCode(move.startPos)[0];
-                    break;
+                    Move compareMove = moveCheckBoard.possibleMoves[j];
+
+                    if (compareMove.endPos == move.endPos && Piece.AbsoluteType(moveCheckBoard.board[compareMove.startPos]) == type && compareMove.startPos != move.startPos)
+                    {
+                        moveData += Piece.File(move.startPos) == Piece.File(move.endPos) ? BoardCode(move.startPos)[1] : BoardCode(move.startPos)[0];
+                        break;
+                    }
                 }
+
+                if (captureType != 0 || move.type == 1) moveData += type == 6 ? $"{BoardCode(move.startPos)[0]}x" : "x"; //capture marker
+                moveData += $"{BoardCode(move.endPos)}"; //default eg e4 f3
+
+                //promotions
+                if (move.type == 2) moveData += "=Q";
+                else if (move.type == 3) moveData += "=R";
+                else if (move.type == 4) moveData += "=B";
+                else if (move.type == 5) moveData += "=N";
             }
-
-            if (captureType != 0 || move.type == 1) moveData += type == 6 ? $"{BoardCode(move.startPos)[0]}x" : "x"; //capture marker
-            moveData += $"{BoardCode(move.endPos)}"; //default eg e4 f3
-
-            //promotions
-            if (move.type == 2) moveData += "=Q";
-            else if (move.type == 3) moveData += "=R";
-            else if (move.type == 4) moveData += "=B";
-            else if (move.type == 5) moveData += "=N";
 
             moveCheckBoard.MakeMove(move);
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using UnityEngine;
 
 // --- TO IMPLEMENT ---
 //generate capture only boards
@@ -31,7 +32,7 @@ public static class ReviBotPro
 
     public static void Init()
     {
-        openingBook = new OpeningBook(System.IO.File.ReadAllText("Assets/Book.txt"));
+        openingBook = new OpeningBook(System.IO.File.ReadAllText(Application.streamingAssetsPath + "/Book.txt"));
         transpositionTable = new TranspositionTable(64); //64 mb
         GUIHandler.ResetBotUI();
     }
@@ -81,8 +82,15 @@ public static class ReviBotPro
 
         while (true)
         {
-            if (diagnostics.searchElapsedTime < iterativeThresholds[(int)iterativeDeepening - 1] && Math.Abs(eval) < 99999)
+            if ((diagnostics.searchElapsedTime < iterativeThresholds[(int)iterativeDeepening - 1]) && Math.Abs(eval) < 99999)
             {
+                if (iterativeDeepening == GameHandler.IterativeDeepeningMode.Low && diagnostics.moveDiagnostics.Count > 0 && diagnostics.currentMove.movesSearched == 0 && diagnostics.moveDiagnostics[^1].depth > intialSearchDepth)
+                {
+                    UnityEngine.Debug.Log("YOOOO");
+                    //if low deepening and transposition was higher depth than current move, cancel lol
+                    break;
+                }
+
                 currentSearchDepth++;
                 UnityEngine.Debug.Log($"[ReviBotPro], Total Search Elapsed Time: {diagnostics.searchElapsedTime}ms, Increasing Search Depth From {currentSearchDepth - 1} To {currentSearchDepth}");
                 Search(currentSearchDepth, 0, double.MinValue, double.MaxValue, 0);

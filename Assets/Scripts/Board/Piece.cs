@@ -37,6 +37,9 @@ public static class Piece
     /// <summary> Returns colour of the piece of given type (empty squares will return true). </summary>
     public static bool IsWhite(byte type) { return type <= 6; }
 
+    /// <summary> Returns absolute type of piece irrespective of colour </summary>
+    public static int AbsoluteType(byte type) { return type > 6 ? type - 6 : type; }
+
     /// <summary> Returns if type is a piece or pawn. </summary>
     public static bool IsPiece(byte type) { return type > 0 && type <= 12; }
 
@@ -46,12 +49,6 @@ public static class Piece
         if (type == 0) return 0;
         if (type > 6) type -= 6;
         return materialPieceValues[type - 1];
-    }
-
-    /// <summary> Returns absolute type of piece irrespective of colour </summary>
-    public static int AbsoluteType(byte type)
-    {
-        return type > 6 ? type - 6 : type;
     }
 
     /// <summary> Returns the rank (y position) of given board index. </summary>

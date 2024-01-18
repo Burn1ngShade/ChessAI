@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 using static ReviBotPro.SearchDiagnostics;
 
@@ -13,9 +14,9 @@ public class GameHandler : MonoBehaviour
     public static BotMode botMode;
 
     public enum IterativeDeepeningMode { Off, Low, Normal, High }
-    public static IterativeDeepeningMode iterativeDeepening = IterativeDeepeningMode.Normal;
+    public static IterativeDeepeningMode iterativeDeepening = IterativeDeepeningMode.Low;
 
-    public static int botSearchDepth = 6;
+    public static int botSearchDepth = 4;
     public static int openBookMode = -1;
 
     public enum GameState { Playing, Promotion, Over }
@@ -24,6 +25,8 @@ public class GameHandler : MonoBehaviour
     static byte selectedPiece = byte.MaxValue;
     static byte lastSelectedSquare = byte.MaxValue;
     public static byte selectedPromotion = byte.MaxValue;
+
+    static bool inSearch = false;
 
     public readonly List<(KeyCode hotkey, Action action)> hotkeys = new List<(KeyCode hotkey, Action action)>() {
         (KeyCode.R, new Action(() => SetUpChessBoard(Board.usedFen))),
@@ -83,6 +86,7 @@ public class GameHandler : MonoBehaviour
                 if (board.state.gameState != 0)
                 {
                     gameState = GameState.Over;
+                    GUIHandler.UpdateBoardHeader("Game Over!", "Want Bot To Play Again? Press Reset Game!");
                     GUIHandler.ToggleEndGameUI(0);
                     return;
                 }
@@ -102,16 +106,21 @@ public class GameHandler : MonoBehaviour
     /// <summary> Handles bot gameplay. </summary>
     void HandleBotGameplay()
     {
-        if (!GUIHandler.popupUI[4].gameObject.activeSelf && (openBookMode == -2 || !ReviBotPro.openingBook.TryGetBookMove(board, out string s)))
+        if (!(inSearch || openBookMode == -2 || ReviBotPro.openingBook.TryGetBookMove(board, out string s)))
         {
-            GUIHandler.popupUI[4].gameObject.SetActive(true);
+            GUIHandler.UpdateBoardHeader("Searching For A Move...", "Taking To Long? Reduce Inital Bot Depth, Or Lower Iterative Deepening!");
+            inSearch = true;
             return; //give frame for it to appear on screen
         }
+
+        inSearch = true;
 
         Move m = ReviBotPro.StartSearch(board, iterativeDeepening, botSearchDepth, openBookMode);
         board.MakeMove(m);
 
-        GUIHandler.popupUI[4].gameObject.SetActive(false);
+        inSearch = false;
+
+        GUIHandler.UpdateBoardHeader("Waiting For User...", "Want Bot To Play? Edit Bot Mode In Settings!");
 
         GUIHandler.UpdateBoardUI(new List<Move>(), GUIHandler.GenerateLastMoveHighlight());
     }
@@ -189,6 +198,7 @@ public class GameHandler : MonoBehaviour
 
         GUIHandler.ResetBotUI();
         GUIHandler.UpdateBoardUI(new List<Move>(), GUIHandler.ClearColourHighlights());
+        GUIHandler.UpdateBoardHeader("Waiting For User...", "Want Bot To Play? Edit Bot Mode In Settings!");
     }
 
     /// <summary> Updates bot settings from popup menu. </summary>
