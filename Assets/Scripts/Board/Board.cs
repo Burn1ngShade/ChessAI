@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using UnityEditor;
-using UnityEngine.UIElements;
 
 /// <summary> Class representing a state of a chess game. </summary>
 public class Board
@@ -275,6 +273,12 @@ public class Board
     /// <summary> Updates current state of game (playing, won, drawn). </summary>
     public void UpdateGameState()
     {
+        if (state.isInsufficientMaterial)
+        {
+            state.gameState = 6;
+            return; 
+        }
+
         if (doublePreviousPositions.Contains(state.zobristKey))
         {
             state.gameState = 5;
@@ -306,6 +310,7 @@ public class BoardState
 
     public bool isCheck;
     public bool isCaptureOrPromotion;
+    public bool isInsufficientMaterial;
 
     public byte whiteKingPos;
     public byte blackKingPos;
@@ -326,6 +331,7 @@ public class BoardState
 
         isCheck = state.isCheck;
         isCaptureOrPromotion = state.isCaptureOrPromotion;
+        isInsufficientMaterial = state.isInsufficientMaterial;
 
         whiteKingPos = state.whiteKingPos;
         blackKingPos = state.blackKingPos;

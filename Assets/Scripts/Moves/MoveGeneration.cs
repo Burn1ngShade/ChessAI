@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 
-/// <summary> Class responsbile for chess move generation . </summary>
+/// <summary> Class responsbile for chess move generation. </summary>
 public static class MoveGeneration
 {
     static int checkState = 0;
@@ -60,6 +60,14 @@ public static class MoveGeneration
         GenerateAttackBitboards(b, newMoves);
 
         if (checkState != 0) b.state.isCheck = true;
+
+        (int white, int black, int total, int pawn) material = Piece.RemaingMaterial(b);
+        if (material.pawn == 0 && material.white <= 3 && material.black <= 3)
+        {
+            b.state.isInsufficientMaterial = true;
+            UnityEngine.Debug.Log($"{material.pawn} {material.black} {material.white}");
+            return new List<Move>();
+        }
 
         List<Move> validMoves = new List<Move>();
 
@@ -176,6 +184,7 @@ public static class MoveGeneration
         b.legalMoves = (0, 0, 0, 0);
         b.state.isCaptureOrPromotion = false;
         b.state.isCheck = false;
+        b.state.isInsufficientMaterial = false;
     }
 
     /// <summary> Adds move to list of pseudo-legal moves. </summary>

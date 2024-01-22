@@ -14,7 +14,7 @@ public static class MoveOrdering
     /// <summary> Advanced move ordering algorithim. </summary>
     public static List<Move> OrderedMoves(Board board)
     {
-        (double white, double black, double total) remaingMaterial = Piece.RemaingMaterial(board); //material left on board (using rudmentray values)
+        (int white, int black, int total, int pawn) remaingMaterial = Piece.RemaingMaterial(board); //material left on board (using rudmentray values)
         double interpFactor = Math.Clamp(remaingMaterial.total / Piece.MaxMaterial, 0, 1); //interpolate between midgame and endgame tables
 
         (Move move, int score)[] m = new (Move, int)[board.possibleMoves.Count];
@@ -27,12 +27,6 @@ public static class MoveOrdering
             byte type = board.board[move.startPos];
             byte captureType = board.board[move.endPos];
             bool isWhite = Piece.IsWhite(type);
-
-            if (type <= 0 || type > 12)
-            {
-                UnityEngine.Debug.Log("THIS SHOULDNT BE HAPPENING!?!?!?!?");
-                UnityEngine.Debug.Log(move);
-            }
 
             bool recapturePossible = BinaryUtilities.BitboardContains(board.whiteTurn ? board.bPossbileAttackBitboard : board.wPossbileAttackBitboard, board.possibleMoves[i].endPos);
 

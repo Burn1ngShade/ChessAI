@@ -16,22 +16,26 @@ public static class Piece
 
 
     /// <summary> Caculates remaining material on board (simplifed values). </summary>
-    public static (int white, int black, int total) RemaingMaterial(Board board)
+    public static (int white, int black, int total, int pawn) RemaingMaterial(Board board)
     {
-        int white = 0, black = 0, total = 0;
+        int white = 0, black = 0, total = 0, pawn = 0;
 
         for (int i = 0; i < 64; i++)
         {
             if ((board.pieceBitboard & (1UL << i)) != 0)
             {
                 int absType = AbsoluteType(board.board[i]) - 1;
+
+                //-1 as array has no null piece
+                if (absType == PawnPiece - 1) pawn += 1;
+
                 total += materialPieceValues[absType];
                 if (IsWhite(board.board[i])) white += materialPieceValues[absType];
                 else black += materialPieceValues[absType];
             }
         }
 
-        return (white, black, total);
+        return (white, black, total, pawn);
     }
 
     /// <summary> Returns colour of the piece of given type (empty squares will return true). </summary>

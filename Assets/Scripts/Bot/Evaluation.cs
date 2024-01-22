@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Numerics;
 
 /// <summary> Class responsible for evaluating chess position. </summary>
 public static class Evaluation
@@ -16,7 +18,7 @@ public static class Evaluation
             else return 0;
         }
 
-        (double white, double black, double total) remaingMaterial = Piece.RemaingMaterial(board); //material left on board (using rudmentray values)
+        (double white, double black, double total, double pawn) remaingMaterial = Piece.RemaingMaterial(board); //material left on board (using rudmentray values)
         double interpFactor = Math.Clamp(remaingMaterial.total / Piece.MaxMaterial, 0, 1); //interpolate between midgame and endgame tables
 
         //piece and position values for all squares
@@ -114,13 +116,17 @@ public static class Evaluation
             eval -= EvaluateKingSaftey(board.board, board.state.blackKingPos, false) * interpFactor;
 
             //castling encouragement
-            if (!initalMove.IsNullMove && (initalMove.type == 6 || initalMove.type == 7)) eval += 50 * ((board.turn - plyFromRoot) % 2 == 0 ? 1 : -1);
+            if (!initalMove.IsNullMove && (initalMove.type == 6 || initalMove.type == 7))
+            {
+                eval += 50 * ((board.turn - plyFromRoot) % 2 == 0 ? 1 : -1);
+            }
         }
 
         return eval;
     }
 
-    public static double RelativeEvaluate(Board board, Move initalMove, int plyFromRoot = 0){
+    public static double RelativeEvaluate(Board board, Move initalMove, int plyFromRoot = 0)
+    {
         return Evaluate(board, initalMove, plyFromRoot) * (board.whiteTurn ? 1 : -1);
     }
 

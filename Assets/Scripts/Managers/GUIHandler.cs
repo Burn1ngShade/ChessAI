@@ -259,7 +259,7 @@ public class GUIHandler : MonoBehaviour
     // --- POP UPS ---
 
     static string[] endGameMessages = new string[] {
-    "", "White Checkmate!", "Black Checkmate!", "Draw Via Stalemate!", "Draw Via 50 Move Rule!", "Draw Via Repetition!"};
+    "", "White Checkmate!", "Black Checkmate!", "Draw Via Stalemate!", "Draw Via 50 Move Rule!", "Draw Via Repetition!", "Draw Via Insufficient Mat!"};
 
     /// <summary> Toggles end game ui. </summary>
     public static void ToggleEndGameUI(int state)

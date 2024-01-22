@@ -78,17 +78,19 @@ public static class ReviBotPro
         int currentSearchDepth = intialSearchDepth;
         double eval = Search(currentSearchDepth, 0, double.MinValue, double.MaxValue, 0);
 
-        if (iterativeDeepening == GameHandler.IterativeDeepeningMode.Off) return (eval, intialSearchDepth);
+        if (iterativeDeepening == GameHandler.IterativeDeepeningMode.Off) return (eval, currentSearchDepth);
 
         while (true)
         {
             if ((diagnostics.searchElapsedTime < iterativeThresholds[(int)iterativeDeepening - 1]) && Math.Abs(eval) < 99999)
             {
-                if (iterativeDeepening == GameHandler.IterativeDeepeningMode.Low && diagnostics.moveDiagnostics.Count > 0 && diagnostics.currentMove.movesSearched == 0 && diagnostics.moveDiagnostics[^1].depth > intialSearchDepth)
+                if (diagnostics.currentMove.movesSearched == 0 && diagnostics.moveDiagnostics[^1].timeTaken * 1000 > iterativeThresholds[(int)iterativeDeepening - 1] * 1.25d && diagnostics.moveDiagnostics[^1].depth - 1 >= currentSearchDepth)
                 {
-                    UnityEngine.Debug.Log("YOOOO");
-                    //if low deepening and transposition was higher depth than current move, cancel lol
                     break;
+                }
+                else if (diagnostics.currentMove.movesSearched == 0)
+                {
+                    UnityEngine.Debug.Log($"{diagnostics.moveDiagnostics[^1].timeTaken}");
                 }
 
                 currentSearchDepth++;

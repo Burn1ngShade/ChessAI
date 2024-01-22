@@ -120,14 +120,14 @@ public class GameHandler : MonoBehaviour
 
         inSearch = false;
 
-        GUIHandler.UpdateBoardHeader("Waiting For User...", "Want Bot To Play? Edit Bot Mode In Settings!");
-
         GUIHandler.UpdateBoardUI(new List<Move>(), GUIHandler.GenerateLastMoveHighlight());
     }
 
     /// <summary> Handles gameplay. </summary>
     void HandleGameplay()
     {
+        GUIHandler.UpdateBoardHeader("Waiting For User...", "Want Bot To Play? Edit Bot Mode In Settings!");
+
         if (Input.GetMouseButtonDown(0)) // Human move
         {
             Vector2 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition) + new Vector3(4, 4);
