@@ -2,7 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using JetBrains.Annotations;
+
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,7 +11,7 @@ using static ReviBotPro.SearchDiagnostics;
 /// <summary> Class responsible for visualising chess engine </summary>
 public class GUIHandler : MonoBehaviour
 {
-    static GUIHandler Instance;
+    public static GUIHandler Instance;
 
     static Transform pieceObjHolder;
     static Transform indicatorHolder;
@@ -26,6 +26,8 @@ public class GUIHandler : MonoBehaviour
 
     public Sprite[] pieceSprites = new Sprite[24];
     public int spriteMode = 1;
+
+    public AudioSource[] sounds = new AudioSource[7];
 
     public GameObject[] indicators;
 
@@ -351,6 +353,36 @@ public class GUIHandler : MonoBehaviour
         {
             if (!enabled) inMenu = false;
             else inMenu = true;
+        }
+    }
+
+    /// <summary> Plays approriate audio file, for given move and board. </summary>
+    public static void PlayMoveAudio(Board board, Move move)
+    {
+        if (board.state.gameState != 0)
+        {
+            Instance.sounds[6].Play(); //game over
+            return;
+        }
+
+        if (board.state.isCheck)
+        {
+            Instance.sounds[2].Play(); //check
+            return;
+        }
+
+        if (move.type >= 6)
+        {
+            Instance.sounds[3].Play(); //castle
+        }
+        else if (move.type >= 2)
+        {
+            Instance.sounds[4].Play(); //promote
+        }
+        else 
+        {
+            if (move.capturePiece != 0 || move.type == 1) Instance.sounds[1].Play(); //capture
+            else Instance.sounds[0].Play(); //normal
         }
     }
 }

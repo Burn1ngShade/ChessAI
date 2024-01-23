@@ -118,6 +118,8 @@ public class GameHandler : MonoBehaviour
         Move m = ReviBotPro.StartSearch(board, iterativeDeepening, botSearchDepth, openBookMode);
         board.MakeMove(m);
 
+        GUIHandler.PlayMoveAudio(board, board.previousMoves.Peek());
+
         inSearch = false;
 
         GUIHandler.UpdateBoardUI(new List<Move>(), GUIHandler.GenerateLastMoveHighlight());
@@ -156,6 +158,7 @@ public class GameHandler : MonoBehaviour
                         }
 
                         board.MakeMove(move);
+                        GUIHandler.PlayMoveAudio(board, board.previousMoves.Peek());
                     }
 
 
@@ -179,6 +182,7 @@ public class GameHandler : MonoBehaviour
             selectedPromotion = byte.MaxValue;
 
             board.MakeMove(move);
+            GUIHandler.PlayMoveAudio(board, board.previousMoves.Peek());
 
             selectedPiece = byte.MaxValue;
 
@@ -195,6 +199,8 @@ public class GameHandler : MonoBehaviour
 
         board = new Board(fenPosition);
         gameState = GameState.Playing;
+
+        GUIHandler.Instance.sounds[5].Play();
 
         GUIHandler.ResetBotUI();
         GUIHandler.UpdateBoardUI(new List<Move>(), GUIHandler.ClearColourHighlights());
